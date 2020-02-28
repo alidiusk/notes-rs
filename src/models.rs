@@ -83,7 +83,7 @@ impl std::fmt::Display for Note {
 impl Table for Note {
     type Row = Note;
 
-    fn get_all(conn: &Connection, table: TableName) -> Result<Vec<Note>, TableError> {
+    fn get_all(conn: &Connection, table: &TableName) -> Result<Vec<Note>, TableError> {
         Ok(conn
             .prepare(&format!("SELECT * FROM {}", table))?
             .query_map(NO_PARAMS, |row| {
@@ -97,7 +97,7 @@ impl Table for Note {
             .collect())
     }
 
-    fn insert(conn: &Connection, table: TableName, row: Note) -> Result<(), TableError> {
+    fn insert(conn: &Connection, table: &TableName, row: Note) -> Result<(), TableError> {
         conn.execute(
             &format!(
                 "INSERT INTO {} (title, created, text) VALUES (?1, ?2, ?3)",

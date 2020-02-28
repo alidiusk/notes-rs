@@ -76,19 +76,19 @@ enum Opt {
 
 fn get_notes_with_title(
     db_context: &DbContext,
-    title: String,
+    title: &str,
     exact: bool,
 ) -> Result<Vec<Note>, TableError> {
     match exact {
         false => {
             let field = format!("%{}%", title);
-            let query = Query::new_get(db_context.table.clone(), vec![title])
+            let query = Query::new_get(&db_context.table, vec![title.to_owned()])
                 .add_where(Where::Like("title".to_string(), Field::Str(field)));
             Note::get(db_context.connection(), query)
         }
         true => {
             let field = format!("{}", title);
-            let query = Query::new_get(db_context.table.clone(), vec![title])
+            let query = Query::new_get(&db_context.table, vec![title.to_owned()])
                 .add_where(Where::Equal("title".to_string(), Field::Str(field)));
             Note::get(db_context.connection(), query)
         }
@@ -103,13 +103,13 @@ fn delete_notes_with_title(
     match exact {
         false => {
             let field = format!("%{}%", title);
-            let query = Query::new_delete(db_context.table.clone())
+            let query = Query::new_delete(&db_context.table)
                 .add_where(Where::Like("title".to_string(), Field::Str(field)));
             Note::delete(db_context.connection(), query)
         }
         true => {
             let field = format!("{}", title);
-            let query = Query::new_delete(db_context.table.clone())
+            let query = Query::new_delete(&db_context.table)
                 .add_where(Where::Equal("title".to_string(), Field::Str(field)));
             Note::delete(db_context.connection(), query)
         }
@@ -185,7 +185,7 @@ fn main() -> Result<(), ExitFailure> {
             let tx = db_context
                 .transaction()
                 .with_context(|_| format!("could not create database transaction"))?;
-            Note::insert(&tx, table.clone(), Note::new(&title, &text))
+            Note::insert(&tx, &table, Note::new(&title, &text))
                 .with_context(|e| format!("could not add note: {}", e))?;
             tx.commit()?;
         }
@@ -221,7 +221,7 @@ fn main() -> Result<(), ExitFailure> {
                 created,
                 text,
             };
-            Note::insert(&tx, table.clone(), note)
+            Note::insert(&tx, &table, note)
                 .with_context(|e| format!("could not add note: {}", e))?;
             tx.commit()
                 .context(format!("could not commit database transaction"))?;
@@ -253,7 +253,7 @@ fn main() -> Result<(), ExitFailure> {
                 .with_context(|_| format!("could not create database transaction"))?;
 
             let note = Note::new(&title, &contents);
-            Note::insert(&tx, table.clone(), note)
+            Note::insert(&tx, &table, note)
                 .with_context(|e| format!("could not add note: {}", e))?;
 
             tx.commit()
@@ -263,10 +263,10 @@ fn main() -> Result<(), ExitFailure> {
         Opt::Get {
             all: true,
             exact,
-            title: Some(title),
+            title: Some(ref title),
         } => {
             let notes =
-                get_notes_with_title(&db_context, title.clone(), exact).with_context(|e| {
+                get_notes_with_title(&db_context, title, exact).with_context(|e| {
                     format!("could not get notes matching title `{}`: {}", title, e)
                 })?;
 
@@ -284,7 +284,7 @@ fn main() -> Result<(), ExitFailure> {
             exact: false,
             title: None,
         } => {
-            for row in Note::get_all(db_context.connection(), table.clone())
+            for row in Note::get_all(db_context.connection(), &db_context.table)
                 .with_context(|e| format!("could not get all notes: {}", e))?
             {
                 println!("{}", row);
@@ -294,10 +294,10 @@ fn main() -> Result<(), ExitFailure> {
         Opt::Get {
             all: false,
             exact,
-            title: Some(title),
+            title: Some(ref title),
         } => {
             let notes =
-                get_notes_with_title(&db_context, title.clone(), exact).with_context(|e| {
+                get_notes_with_title(&db_context, title, exact).with_context(|e| {
                     format!("could not get first note matching title `{}`: {}", title, e)
                 })?;
             if let Some(note) = notes.get(0) {
@@ -327,7 +327,7 @@ fn main() -> Result<(), ExitFailure> {
                 }
             };
 
-            let query = Query::new_update(table.clone(), params)
+            let query = Query::new_update(&table, params)
                 .add_where(Where::Equal("title".to_string(), Field::Str(note_title)));
 
             let tx = db_context
@@ -357,7 +357,7 @@ fn main() -> Result<(), ExitFailure> {
             exact: false,
             title: None,
         } => {
-            for row in Note::get_all(db_context.connection(), table.clone())
+            for row in Note::get_all(db_context.connection(), &db_context.table)
                 .with_context(|e| format!("could not get all notes: {}", e))?
             {
                 println!("{}", row);

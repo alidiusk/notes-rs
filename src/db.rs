@@ -85,9 +85,9 @@ pub enum Query {
 }
 
 impl Query {
-    pub fn new_get(table: TableName, columns: Vec<ColumnName>) -> Self {
+    pub fn new_get(table: &TableName, columns: Vec<ColumnName>) -> Self {
         Query::Get {
-            table,
+            table: table.to_owned(),
             columns,
             where_clause: None,
             order_clause: None,
@@ -95,9 +95,9 @@ impl Query {
         }
     }
 
-    pub fn new_update(table: TableName, set_clause: Params) -> Self {
+    pub fn new_update(table: &TableName, set_clause: Params) -> Self {
         Query::Update {
-            table,
+            table: table.to_owned(),
             set_clause,
             where_clause: None,
             order_clause: None,
@@ -105,9 +105,9 @@ impl Query {
         }
     }
 
-    pub fn new_delete(table: TableName) -> Self {
+    pub fn new_delete(table: &TableName) -> Self {
         Query::Delete {
-            table,
+            table: table.to_owned(),
             where_clause: None,
             order_clause: None,
             limit_clause: None,
@@ -288,8 +288,8 @@ impl Query {
 pub trait Table {
     type Row;
 
-    fn get_all<'a>(conn: &Connection, table: TableName) -> Result<Vec<Self::Row>, TableError>;
-    fn insert<'a>(conn: &Connection, table: TableName, row: Self::Row) -> Result<(), TableError>;
+    fn get_all<'a>(conn: &Connection, table: &TableName) -> Result<Vec<Self::Row>, TableError>;
+    fn insert<'a>(conn: &Connection, table: &TableName, row: Self::Row) -> Result<(), TableError>;
     fn delete<'a>(conn: &Connection, query: Query) -> Result<u32, TableError>;
     fn update<'a>(conn: &Connection, query: Query) -> Result<u32, TableError>;
     fn get<'a>(conn: &Connection, query: Query) -> Result<Vec<Self::Row>, TableError>;
