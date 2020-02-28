@@ -1,0 +1,16 @@
+[package]
+authors = ["Liam Woodward <liamowoodward@gmail.com>"]
+edition = "2018"
+name = "notes"
+version = "0.1.0"
+
+[dependencies]
+chrono = "0.4"
+directories = "2.0"
+exitfailure = "0.5.1"
+failure = "0.1.6"
+structopt = "0.3"
+
+[dependencies.rusqlite]
+version = "0.21.0"
+features = ["chrono"]
