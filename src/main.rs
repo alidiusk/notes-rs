@@ -7,7 +7,7 @@ mod models;
 use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
-use db::{Field, Query, Table, TableError, Where};
+use db::{Field, Query, Table, Where};
 use models::{DbContext, Note};
 
 use chrono::{DateTime, Local};
@@ -78,7 +78,7 @@ fn get_notes_with_title(
     db_context: &DbContext,
     title: &str,
     exact: bool,
-) -> Result<Vec<Note>, TableError> {
+) -> Result<Vec<Note>, failure::Error> {
     match exact {
         false => {
             let field = format!("%{}%", title);
@@ -99,7 +99,7 @@ fn delete_notes_with_title(
     db_context: &DbContext,
     title: &str,
     exact: bool,
-) -> Result<u32, TableError> {
+) -> Result<u32, failure::Error> {
     match exact {
         false => {
             let field = format!("%{}%", title);
@@ -172,8 +172,7 @@ fn main() -> Result<(), ExitFailure> {
 
     let table = db_context.table.clone();
 
-    Note::init_db(db_context.connection())
-        .with_context(|e| format!("could not initiate database contents: {}", e))?;
+    Note::init_db(db_context.connection())?;
 
     match opt {
         Opt::New {
@@ -183,10 +182,8 @@ fn main() -> Result<(), ExitFailure> {
             text: Some(text),
         } => {
             let tx = db_context
-                .transaction()
-                .with_context(|_| format!("could not create database transaction"))?;
-            Note::insert(&tx, &table, Note::new(&title, &text))
-                .with_context(|e| format!("could not add note: {}", e))?;
+                .transaction()?;
+            Note::insert(&tx, &table, Note::new(&title, &text))?;
             tx.commit()?;
         }
         Opt::New {
@@ -214,15 +211,13 @@ fn main() -> Result<(), ExitFailure> {
             let text = get_file_contents(&path)?.to_string();
 
             let tx = db_context
-                .transaction()
-                .with_context(|_| format!("could not create database transaction"))?;
+                .transaction()?;
             let note = Note {
                 title,
                 created,
                 text,
             };
-            Note::insert(&tx, &table, note)
-                .with_context(|e| format!("could not add note: {}", e))?;
+            Note::insert(&tx, &table, note)?;
             tx.commit()
                 .context(format!("could not commit database transaction"))?;
         }
@@ -249,12 +244,10 @@ fn main() -> Result<(), ExitFailure> {
                 .with_context(|e| format!("could not get file contents: {}", e))?;
 
             let tx = db_context
-                .transaction()
-                .with_context(|_| format!("could not create database transaction"))?;
+                .transaction()?;
 
             let note = Note::new(&title, &contents);
-            Note::insert(&tx, &table, note)
-                .with_context(|e| format!("could not add note: {}", e))?;
+            Note::insert(&tx, &table, note)?;
 
             tx.commit()
                 .context(format!("could not commit database transaction"))?;
@@ -266,6 +259,7 @@ fn main() -> Result<(), ExitFailure> {
             title: Some(ref title),
         } => {
             let notes =
+                // not sure to keep with_context call heree
                 get_notes_with_title(&db_context, title, exact).with_context(|e| {
                     format!("could not get notes matching title `{}`: {}", title, e)
                 })?;
@@ -284,8 +278,7 @@ fn main() -> Result<(), ExitFailure> {
             exact: false,
             title: None,
         } => {
-            for row in Note::get_all(db_context.connection(), &db_context.table)
-                .with_context(|e| format!("could not get all notes: {}", e))?
+            for row in Note::get_all(db_context.connection(), &db_context.table)?
             {
                 println!("{}", row);
             }
@@ -297,6 +290,7 @@ fn main() -> Result<(), ExitFailure> {
             title: Some(ref title),
         } => {
             let notes =
+                // not sure to keep with_context call here
                 get_notes_with_title(&db_context, title, exact).with_context(|e| {
                     format!("could not get first note matching title `{}`: {}", title, e)
                 })?;
@@ -331,10 +325,9 @@ fn main() -> Result<(), ExitFailure> {
                 .add_where(Where::Equal("title".to_string(), Field::Str(note_title)));
 
             let tx = db_context
-                .transaction()
-                .with_context(|_| format!("could not create database transaction"))?;
+                .transaction()?;
 
-            Note::update(&tx, query).with_context(|e| format!("could not update note: {}", e))?;
+            Note::update(&tx, query)?;
 
             tx.commit()
                 .context(format!("could not commit database transaction"))?;
@@ -345,6 +338,7 @@ fn main() -> Result<(), ExitFailure> {
             title: Some(title),
         } => {
             let num_deleted =
+                // not sure to keep with_context call here
                 delete_notes_with_title(&db_context, &title, exact).with_context(|e| {
                     format!("could not delete notes matching title `{}`: {}", title, e)
                 })?;
@@ -357,8 +351,7 @@ fn main() -> Result<(), ExitFailure> {
             exact: false,
             title: None,
         } => {
-            for row in Note::get_all(db_context.connection(), &db_context.table)
-                .with_context(|e| format!("could not get all notes: {}", e))?
+            for row in Note::get_all(db_context.connection(), &db_context.table)?
             {
                 println!("{}", row);
             }
@@ -369,6 +362,7 @@ fn main() -> Result<(), ExitFailure> {
             exact,
             title: Some(title),
         } => {
+            // not sure to keep with_context call here
             let num_deleted =
                 delete_notes_with_title(&db_context, &title, exact).with_context(|e| {
                     format!(

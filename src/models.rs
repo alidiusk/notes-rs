@@ -3,6 +3,7 @@ use std::path::Path;
 use crate::db::*;
 
 use chrono::{DateTime, Local};
+use failure::ResultExt;
 use rusqlite::{params, Connection, Transaction, NO_PARAMS};
 
 /*
@@ -26,10 +27,10 @@ pub struct DbContext {
 }
 
 impl DbContext {
-    pub fn new<P: AsRef<Path>>(path: P, table: TableName) -> Result<Self, TableError> {
+    pub fn new<P: AsRef<Path>>(path: P, table: TableName) -> Result<Self, failure::Error> {
         Ok(DbContext {
             table,
-            conn: Connection::open(path)?,
+            conn: Connection::open(path).context("could not establish connection to the database")?,
         })
     }
 
@@ -37,8 +38,11 @@ impl DbContext {
         &self.conn
     }
 
-    pub fn transaction(&mut self) -> Result<Transaction, TableError> {
-        Ok(self.conn.transaction()?)
+    pub fn transaction(&mut self) -> Result<Transaction, failure::Error> {
+        Ok(
+            self.conn.transaction()
+            .with_context(|e| format!("could not create database transaction: {}", e))?
+        )
     }
 }
 
@@ -58,7 +62,7 @@ impl Note {
         }
     }
 
-    pub fn init_db<'a>(conn: &Connection) -> Result<(), TableError> {
+    pub fn init_db<'a>(conn: &Connection) -> Result<(), failure::Error> {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS notes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,7 +71,7 @@ impl Note {
                 text TEXT NOT NULL
                 )",
             NO_PARAMS,
-        )?;
+        ).with_context(|e| format!("could not init database: {}", e))?;
 
         Ok(())
     }
@@ -83,37 +87,40 @@ impl std::fmt::Display for Note {
 impl Table for Note {
     type Row = Note;
 
-    fn get_all(conn: &Connection, table: &TableName) -> Result<Vec<Note>, TableError> {
+    fn get_all(conn: &Connection, table: &TableName) -> Result<Vec<Note>, failure::Error> {
         Ok(conn
             .prepare(&format!("SELECT * FROM {}", table))?
             .query_map(NO_PARAMS, |row| {
                 Ok(Note {
+                    // start at 1 because index 0 is the noteid
+                    // cannot add context to this apparently because of 
+                    // rusqlite::error::Error implementation
                     title: row.get(1)?,
                     created: row.get(2)?,
                     text: row.get(3)?,
                 })
-            })?
+            }).context("could note retrieve note")?
             .filter_map(Result::ok)
             .collect())
     }
 
-    fn insert(conn: &Connection, table: &TableName, row: Note) -> Result<(), TableError> {
+    fn insert(conn: &Connection, table: &TableName, row: Note) -> Result<(), failure::Error> {
         conn.execute(
             &format!(
                 "INSERT INTO {} (title, created, text) VALUES (?1, ?2, ?3)",
                 table
             ),
             params![row.title, row.created, row.text],
-        )?;
+        ).context("could not insert note")?;
         Ok(())
     }
 
-    fn delete(conn: &Connection, query: Query) -> Result<u32, TableError> {
+    fn delete(conn: &Connection, query: Query) -> Result<u32, failure::Error> {
         let query_string = &query.to_sql();
-        Ok(conn.execute(query_string, NO_PARAMS)? as u32)
+        Ok(conn.execute(query_string, NO_PARAMS).context("could not delete note")? as u32)
     }
 
-    fn update(conn: &Connection, query: Query) -> Result<u32, TableError> {
+    fn update(conn: &Connection, query: Query) -> Result<u32, failure::Error> {
         let query_string = &query.to_sql();
 
         // let mut set_string = params
@@ -129,20 +136,23 @@ impl Table for Note {
         // let stmt_params: &[&String] = stmt_params.as_slice();
         //
         // let final_query = &(String::from("UPDATE notes\nSET ") + &set_string + query_string);
-        Ok(conn.execute(query_string, NO_PARAMS)? as u32)
+        Ok(conn.execute(query_string, NO_PARAMS).context("could not update note")? as u32)
     }
 
-    fn get(conn: &Connection, query: Query) -> Result<Vec<Note>, TableError> {
+    fn get(conn: &Connection, query: Query) -> Result<Vec<Note>, failure::Error> {
         let query_string = &query.to_sql();
         Ok(conn
             .prepare(query_string)?
             .query_map(NO_PARAMS, |row| {
                 Ok(Note {
+                    // start at 1 because index 0 is the noteid
+                    // cannot add context to this apparently because of 
+                    // rusqlite::error::Error implementation
                     title: row.get(1)?,
                     created: row.get(2)?,
                     text: row.get(3)?,
                 })
-            })?
+            }).context("could not retrieve note")?
             .filter_map(Result::ok)
             .collect())
     }
