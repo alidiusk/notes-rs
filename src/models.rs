@@ -61,7 +61,18 @@ impl Note {
             text: text.trim().to_string(),
         }
     }
+}
 
+impl std::fmt::Display for Note {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let date = self.created.format("%Y-%m-%d %H:%M:%S").to_string();
+        write!(f, "[{}] {}\n\"{}\"", date, self.title, self.text)
+    }
+}
+
+pub struct NoteTable;
+
+impl NoteTable {
     pub fn init_db<'a>(conn: &Connection) -> Result<(), failure::Error> {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS notes (
@@ -77,14 +88,7 @@ impl Note {
     }
 }
 
-impl std::fmt::Display for Note {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let date = self.created.format("%Y-%m-%d %H:%M:%S").to_string();
-        write!(f, "[{}] {}\n\"{}\"", date, self.title, self.text)
-    }
-}
-
-impl Table for Note {
+impl Table for NoteTable {
     type Row = Note;
 
     fn get_all(conn: &Connection, table: &TableName) -> Result<Vec<Note>, failure::Error> {
@@ -116,6 +120,7 @@ impl Table for Note {
     }
 
     fn delete(conn: &Connection, query: Query) -> Result<u32, failure::Error> {
+        // Verify this is Query::Delete
         let query_string = &query.to_sql();
         Ok(conn.execute(query_string, NO_PARAMS).context("could not delete note")? as u32)
     }
@@ -123,19 +128,6 @@ impl Table for Note {
     fn update(conn: &Connection, query: Query) -> Result<u32, failure::Error> {
         let query_string = &query.to_sql();
 
-        // let mut set_string = params
-        //     .iter()
-        //     .enumerate()
-        //     .map(|(i, (name, _))| format!("{} = ?{}", name, i + 1))
-        //     .collect::<Vec<String>>()
-        //     .concat();
-        // // Remove trailing comma
-        // set_string.truncate(set_string.len() - 1);
-        //
-        // let stmt_params = params.iter().map(|(_, val)| val).collect::<Vec<&String>>();
-        // let stmt_params: &[&String] = stmt_params.as_slice();
-        //
-        // let final_query = &(String::from("UPDATE notes\nSET ") + &set_string + query_string);
         Ok(conn.execute(query_string, NO_PARAMS).context("could not update note")? as u32)
     }
 

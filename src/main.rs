@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
 use db::{Field, Query, Table, Where};
-use models::{DbContext, Note};
+use models::{DbContext, Note, NoteTable};
 
 use chrono::{DateTime, Local};
 use directories::ProjectDirs;
@@ -52,6 +52,7 @@ enum Opt {
         #[structopt(short, long, required_unless = "all")]
         title: Option<String>,
     },
+    /// Edit an existing note.
     Edit {
         #[structopt(name = "note_title")]
         note_title: String,
@@ -84,13 +85,13 @@ fn get_notes_with_title(
             let field = format!("%{}%", title);
             let query = Query::new_get(&db_context.table, vec![title.to_owned()])
                 .add_where(Where::Like("title".to_string(), Field::Str(field)));
-            Note::get(db_context.connection(), query)
+            NoteTable::get(db_context.connection(), query)
         }
         true => {
             let field = format!("{}", title);
             let query = Query::new_get(&db_context.table, vec![title.to_owned()])
                 .add_where(Where::Equal("title".to_string(), Field::Str(field)));
-            Note::get(db_context.connection(), query)
+            NoteTable::get(db_context.connection(), query)
         }
     }
 }
@@ -105,13 +106,13 @@ fn delete_notes_with_title(
             let field = format!("%{}%", title);
             let query = Query::new_delete(&db_context.table)
                 .add_where(Where::Like("title".to_string(), Field::Str(field)));
-            Note::delete(db_context.connection(), query)
+            NoteTable::delete(db_context.connection(), query)
         }
         true => {
             let field = format!("{}", title);
             let query = Query::new_delete(&db_context.table)
                 .add_where(Where::Equal("title".to_string(), Field::Str(field)));
-            Note::delete(db_context.connection(), query)
+            NoteTable::delete(db_context.connection(), query)
         }
     }
 }
@@ -136,7 +137,7 @@ fn get_time_created<P: AsRef<Path>>(path: P) -> Result<DateTime<Local>, ExitFail
 fn get_file_contents<P: AsRef<Path>>(path: P) -> Result<String, ExitFailure> {
     let contents = fs::read_to_string(&path)
         .with_context(|e| format!("could not get file contents: {}", e))?;
-    Ok(contents)
+    Ok(contents.trim().to_string())
 }
 
 fn main() -> Result<(), ExitFailure> {
@@ -172,7 +173,7 @@ fn main() -> Result<(), ExitFailure> {
 
     let table = db_context.table.clone();
 
-    Note::init_db(db_context.connection())?;
+    NoteTable::init_db(db_context.connection())?;
 
     match opt {
         Opt::New {
@@ -183,7 +184,7 @@ fn main() -> Result<(), ExitFailure> {
         } => {
             let tx = db_context
                 .transaction()?;
-            Note::insert(&tx, &table, Note::new(&title, &text))?;
+            NoteTable::insert(&tx, &table, Note::new(&title, &text))?;
             tx.commit()?;
         }
         Opt::New {
@@ -217,7 +218,7 @@ fn main() -> Result<(), ExitFailure> {
                 created,
                 text,
             };
-            Note::insert(&tx, &table, note)?;
+            NoteTable::insert(&tx, &table, note)?;
             tx.commit()
                 .context(format!("could not commit database transaction"))?;
         }
@@ -247,7 +248,7 @@ fn main() -> Result<(), ExitFailure> {
                 .transaction()?;
 
             let note = Note::new(&title, &contents);
-            Note::insert(&tx, &table, note)?;
+            NoteTable::insert(&tx, &table, note)?;
 
             tx.commit()
                 .context(format!("could not commit database transaction"))?;
@@ -278,7 +279,7 @@ fn main() -> Result<(), ExitFailure> {
             exact: false,
             title: None,
         } => {
-            for row in Note::get_all(db_context.connection(), &db_context.table)?
+            for row in NoteTable::get_all(db_context.connection(), &db_context.table)?
             {
                 println!("{}", row);
             }
@@ -327,7 +328,7 @@ fn main() -> Result<(), ExitFailure> {
             let tx = db_context
                 .transaction()?;
 
-            Note::update(&tx, query)?;
+            NoteTable::update(&tx, query)?;
 
             tx.commit()
                 .context(format!("could not commit database transaction"))?;
@@ -351,7 +352,7 @@ fn main() -> Result<(), ExitFailure> {
             exact: false,
             title: None,
         } => {
-            for row in Note::get_all(db_context.connection(), &db_context.table)?
+            for row in NoteTable::get_all(db_context.connection(), &db_context.table)?
             {
                 println!("{}", row);
             }
