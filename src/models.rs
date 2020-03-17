@@ -30,7 +30,8 @@ impl DbContext {
     pub fn new<P: AsRef<Path>>(path: P, table: TableName) -> Result<Self, failure::Error> {
         Ok(DbContext {
             table,
-            conn: Connection::open(path).context("could not establish connection to the database")?,
+            conn: Connection::open(path)
+                .with_context(|e| format!("Error establishing connection to the database: {}", e))?,
         })
     }
 
@@ -39,10 +40,10 @@ impl DbContext {
     }
 
     pub fn transaction(&mut self) -> Result<Transaction, failure::Error> {
-        Ok(
-            self.conn.transaction()
-            .with_context(|e| format!("could not create database transaction: {}", e))?
-        )
+        Ok(self
+            .conn
+            .transaction()
+            .with_context(|e| format!("could not create database transaction: {}", e))?)
     }
 }
 
@@ -73,7 +74,7 @@ impl std::fmt::Display for Note {
 pub struct NoteTable;
 
 impl NoteTable {
-    pub fn init_db<'a>(conn: &Connection) -> Result<(), failure::Error> {
+    pub fn init_db(conn: &Connection) -> Result<(), failure::Error> {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS notes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,7 +83,8 @@ impl NoteTable {
                 text TEXT NOT NULL
                 )",
             NO_PARAMS,
-        ).with_context(|e| format!("could not init database: {}", e))?;
+        )
+        .with_context(|e| format!("could not init database: {}", e))?;
 
         Ok(())
     }
@@ -97,13 +99,14 @@ impl Table for NoteTable {
             .query_map(NO_PARAMS, |row| {
                 Ok(Note {
                     // start at 1 because index 0 is the noteid
-                    // cannot add context to this apparently because of 
+                    // cannot add context to this apparently because of
                     // rusqlite::error::Error implementation
                     title: row.get(1)?,
                     created: row.get(2)?,
                     text: row.get(3)?,
                 })
-            }).context("could note retrieve note")?
+            })
+            .context("could note retrieve note")?
             .filter_map(Result::ok)
             .collect())
     }
@@ -115,20 +118,25 @@ impl Table for NoteTable {
                 table
             ),
             params![row.title, row.created, row.text],
-        ).context("could not insert note")?;
+        )
+        .context("could not insert note")?;
         Ok(())
     }
 
     fn delete(conn: &Connection, query: Query) -> Result<u32, failure::Error> {
         // Verify this is Query::Delete
         let query_string = &query.to_sql();
-        Ok(conn.execute(query_string, NO_PARAMS).context("could not delete note")? as u32)
+        Ok(conn
+            .execute(query_string, NO_PARAMS)
+            .context("could not delete note")? as u32)
     }
 
     fn update(conn: &Connection, query: Query) -> Result<u32, failure::Error> {
         let query_string = &query.to_sql();
 
-        Ok(conn.execute(query_string, NO_PARAMS).context("could not update note")? as u32)
+        Ok(conn
+            .execute(query_string, NO_PARAMS)
+            .context("could not update note")? as u32)
     }
 
     fn get(conn: &Connection, query: Query) -> Result<Vec<Note>, failure::Error> {
@@ -138,13 +146,14 @@ impl Table for NoteTable {
             .query_map(NO_PARAMS, |row| {
                 Ok(Note {
                     // start at 1 because index 0 is the noteid
-                    // cannot add context to this apparently because of 
+                    // cannot add context to this apparently because of
                     // rusqlite::error::Error implementation
                     title: row.get(1)?,
                     created: row.get(2)?,
                     text: row.get(3)?,
                 })
-            }).context("could not retrieve note")?
+            })
+            .context("could not retrieve note")?
             .filter_map(Result::ok)
             .collect())
     }
@@ -183,11 +192,11 @@ mod tests {
         let tx = conn.transaction().unwrap();
 
         make_mock_db(&tx);
-        let db_notes = Note::get_all(&tx).unwrap();
+        let db_notes = NoteTable::get_all(&tx).unwrap();
 
         tx.rollback();
 
-        let note = Note::new("Day 12", "Today's diary...");
+        let note = NoteTable::new("Day 12", "Today's diary...");
         let db_note = db_notes.get(0).unwrap();
 
         // Time will be different
@@ -201,8 +210,8 @@ mod tests {
         let tx = conn.transaction().unwrap();
 
         make_mock_db(&tx);
-        Note::insert(&tx, Note::new("Day 13", "A new diary entry...")).unwrap();
-        let db_notes = Note::get_all(&tx).unwrap();
+        NoteTable::insert(&tx, Note::new("Day 13", "A new diary entry...")).unwrap();
+        let db_notes = NoteTable::get_all(&tx).unwrap();
 
         tx.rollback();
 
@@ -218,10 +227,10 @@ mod tests {
         let tx = conn.transaction().unwrap();
 
         make_mock_db(&tx);
-        Note::insert(&tx, Note::new("Day 13", "A new diary entry...")).unwrap();
-        let note_to_delete = Note::get_all(&tx).unwrap().get(0).unwrap().clone();
-        Note::delete(&tx, note_to_delete).unwrap();
-        let db_notes = Note::get_all(&tx).unwrap();
+        NoteTable::insert(&tx, Note::new("Day 13", "A new diary entry...")).unwrap();
+        let note_to_delete = NoteTable::get_all(&tx).unwrap().get(0).unwrap().clone();
+        NoteTable::delete(&tx, note_to_delete).unwrap();
+        let db_notes = NoteTable::get_all(&tx).unwrap();
 
         tx.rollback();
 
@@ -237,11 +246,11 @@ mod tests {
     //     let tx = conn.transaction().unwrap();
     //
     //     make_mock_db(&tx);
-    //     Note::insert(&tx, Note::new("Day 13", "A new diary entry...")).unwrap();
-    //     Note::insert(&tx, Note::new("Day 14", "A new diary entry...")).unwrap();
-    //     Note::insert(&tx, Note::new("Day 15", "A new diary entry...")).unwrap();
+    //     NoteTable::insert(&tx, Note::new("Day 13", "A new diary entry...")).unwrap();
+    //     NoteTable::insert(&tx, Note::new("Day 14", "A new diary entry...")).unwrap();
+    //     NoteTable::insert(&tx, Note::new("Day 15", "A new diary entry...")).unwrap();
     //     let query = Query::new().add_where(Where::Equal("title", Field::Str("Day 14")));
-    //     let db_notes = Note::query(&tx, query).unwrap();
+    //     let db_notes = NoteTable::query(&tx, query).unwrap();
     //
     //     tx.rollback();
     //

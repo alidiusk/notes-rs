@@ -1,12 +1,14 @@
 // Get rid of dead code warnings for now
 #![allow(dead_code)]
 
+mod config;
 mod db;
 mod models;
 
 use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
+use config::Config;
 use db::{Field, Query, Table, Where};
 use models::{DbContext, Note, NoteTable};
 
@@ -15,6 +17,7 @@ use directories::ProjectDirs;
 use exitfailure::ExitFailure;
 use failure::ResultExt;
 use structopt::StructOpt;
+use text_io::read;
 
 /*
 
@@ -80,19 +83,16 @@ fn get_notes_with_title(
     title: &str,
     exact: bool,
 ) -> Result<Vec<Note>, failure::Error> {
-    match exact {
-        false => {
-            let field = format!("%{}%", title);
-            let query = Query::new_get(&db_context.table, vec![title.to_owned()])
-                .add_where(Where::Like("title".to_string(), Field::Str(field)));
-            NoteTable::get(db_context.connection(), query)
-        }
-        true => {
-            let field = format!("{}", title);
-            let query = Query::new_get(&db_context.table, vec![title.to_owned()])
-                .add_where(Where::Equal("title".to_string(), Field::Str(field)));
-            NoteTable::get(db_context.connection(), query)
-        }
+    if exact {
+        let field = title.to_string();
+        let query = Query::new_get(&db_context.table, vec![title.to_owned()])
+            .add_where(Where::Equal("title".to_string(), Field::Str(field)));
+        NoteTable::get(db_context.connection(), query)
+    } else {
+        let field = title.to_string();
+        let query = Query::new_get(&db_context.table, vec![title.to_owned()])
+            .add_where(Where::Like("title".to_string(), Field::Str(field)));
+        NoteTable::get(db_context.connection(), query)
     }
 }
 
@@ -101,19 +101,16 @@ fn delete_notes_with_title(
     title: &str,
     exact: bool,
 ) -> Result<u32, failure::Error> {
-    match exact {
-        false => {
-            let field = format!("%{}%", title);
-            let query = Query::new_delete(&db_context.table)
-                .add_where(Where::Like("title".to_string(), Field::Str(field)));
-            NoteTable::delete(db_context.connection(), query)
-        }
-        true => {
-            let field = format!("{}", title);
-            let query = Query::new_delete(&db_context.table)
-                .add_where(Where::Equal("title".to_string(), Field::Str(field)));
-            NoteTable::delete(db_context.connection(), query)
-        }
+    if exact {
+        let field = title.to_string();
+        let query = Query::new_delete(&db_context.table)
+            .add_where(Where::Equal("title".to_string(), Field::Str(field)));
+        NoteTable::delete(db_context.connection(), query)
+    } else {
+        let field = title.to_string();
+        let query = Query::new_delete(&db_context.table)
+            .add_where(Where::Like("title".to_string(), Field::Str(field)));
+        NoteTable::delete(db_context.connection(), query)
     }
 }
 
@@ -143,7 +140,25 @@ fn get_file_contents<P: AsRef<Path>>(path: P) -> Result<String, ExitFailure> {
 fn main() -> Result<(), ExitFailure> {
     let opt = Opt::from_args();
 
-    // println!("{:?}", opt);
+    // If there is no config currently present, generate a new config.
+    if !Config::config_exists()? {
+        Config::init_config_dialogue()?;
+    }
+
+    let encrypted = Config::is_encrypted()?;
+
+    if encrypted && Config::session_expired()? {
+        print!("Please enter your password: ");
+        let password: String = read!("{}\n");
+
+        if Config::correct_hash(password)? {
+            Config::restore_session()?;
+        } else {
+            println!("Invalid password.");
+
+            return Ok(());
+        }
+    }
 
     let project_dir = match ProjectDirs::from("", "", "Notes") {
         None => Err(failure::err_msg("Could not open local data directory."))
@@ -163,13 +178,7 @@ fn main() -> Result<(), ExitFailure> {
     }
 
     let path = dir.join("notes.db");
-    let mut db_context = DbContext::new(&path, "notes".to_string()).with_context(|e| {
-        format!(
-            "could not establish connection to database at `{}`: {}",
-            path.as_path().to_str().unwrap(),
-            e
-        )
-    })?;
+    let mut db_context = DbContext::new(&path, "notes".to_string())?;
 
     let table = db_context.table.clone();
 
@@ -182,8 +191,7 @@ fn main() -> Result<(), ExitFailure> {
             title: Some(title),
             text: Some(text),
         } => {
-            let tx = db_context
-                .transaction()?;
+            let tx = db_context.transaction()?;
             NoteTable::insert(&tx, &table, Note::new(&title, &text))?;
             tx.commit()?;
         }
@@ -211,8 +219,7 @@ fn main() -> Result<(), ExitFailure> {
             let created = get_time_created(&path)?;
             let text = get_file_contents(&path)?.to_string();
 
-            let tx = db_context
-                .transaction()?;
+            let tx = db_context.transaction()?;
             let note = Note {
                 title,
                 created,
@@ -220,7 +227,7 @@ fn main() -> Result<(), ExitFailure> {
             };
             NoteTable::insert(&tx, &table, note)?;
             tx.commit()
-                .context(format!("could not commit database transaction"))?;
+                .context("could not commit database transaction")?;
         }
         Opt::New {
             file: None,
@@ -230,7 +237,7 @@ fn main() -> Result<(), ExitFailure> {
         } => {
             // https://stackoverflow.com/questions/56011927/how-do-i-use-rust-to-open-the-users-default-editor-and-get-the-edited-content
             let editor = env::var("EDITOR")
-                .with_context(|_| format!("could not get default editor from environment"))?;
+                .with_context(|_| "could not get default editor from environment")?;
             let mut file_path = env::temp_dir();
             file_path.push("temp");
             fs::File::create(&file_path)
@@ -244,14 +251,13 @@ fn main() -> Result<(), ExitFailure> {
             let contents = fs::read_to_string(&file_path)
                 .with_context(|e| format!("could not get file contents: {}", e))?;
 
-            let tx = db_context
-                .transaction()?;
+            let tx = db_context.transaction()?;
 
             let note = Note::new(&title, &contents);
             NoteTable::insert(&tx, &table, note)?;
 
             tx.commit()
-                .context(format!("could not commit database transaction"))?;
+                .context("could not commit database transaction")?;
         }
         // Gets all notes with matching title
         Opt::Get {
@@ -265,7 +271,7 @@ fn main() -> Result<(), ExitFailure> {
                     format!("could not get notes matching title `{}`: {}", title, e)
                 })?;
 
-            if notes.len() == 0 {
+            if notes.is_empty() {
                 println!("No matches found.");
             }
 
@@ -279,8 +285,7 @@ fn main() -> Result<(), ExitFailure> {
             exact: false,
             title: None,
         } => {
-            for row in NoteTable::get_all(db_context.connection(), &db_context.table)?
-            {
+            for row in NoteTable::get_all(db_context.connection(), &db_context.table)? {
                 println!("{}", row);
             }
         }
@@ -325,13 +330,12 @@ fn main() -> Result<(), ExitFailure> {
             let query = Query::new_update(&table, params)
                 .add_where(Where::Equal("title".to_string(), Field::Str(note_title)));
 
-            let tx = db_context
-                .transaction()?;
+            let tx = db_context.transaction()?;
 
             NoteTable::update(&tx, query)?;
 
             tx.commit()
-                .context(format!("could not commit database transaction"))?;
+                .context("could not commit database transaction")?;
         }
         Opt::Delete {
             all: true,
@@ -352,8 +356,7 @@ fn main() -> Result<(), ExitFailure> {
             exact: false,
             title: None,
         } => {
-            for row in NoteTable::get_all(db_context.connection(), &db_context.table)?
-            {
+            for row in NoteTable::get_all(db_context.connection(), &db_context.table)? {
                 println!("{}", row);
             }
         }

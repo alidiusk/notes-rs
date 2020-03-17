@@ -289,7 +289,11 @@ pub trait Table {
     type Row;
 
     fn get_all<'a>(conn: &Connection, table: &TableName) -> Result<Vec<Self::Row>, failure::Error>;
-    fn insert<'a>(conn: &Connection, table: &TableName, row: Self::Row) -> Result<(), failure::Error>;
+    fn insert<'a>(
+        conn: &Connection,
+        table: &TableName,
+        row: Self::Row,
+    ) -> Result<(), failure::Error>;
     fn delete<'a>(conn: &Connection, query: Query) -> Result<u32, failure::Error>;
     fn update<'a>(conn: &Connection, query: Query) -> Result<u32, failure::Error>;
     fn get<'a>(conn: &Connection, query: Query) -> Result<Vec<Self::Row>, failure::Error>;
