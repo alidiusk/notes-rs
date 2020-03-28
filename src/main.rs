@@ -17,7 +17,7 @@ use directories::ProjectDirs;
 use exitfailure::ExitFailure;
 use failure::ResultExt;
 use structopt::StructOpt;
-use text_io::read;
+// use text_io::read;
 
 /*
 

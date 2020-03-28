@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::path::Path;
 
-use crate::config::Config;
+// use crate::config::Config;
 
 use failure::ResultExt;
 use rusqlite::{Connection, Transaction};
@@ -89,6 +89,7 @@ pub enum Query {
 }
 
 impl Query {
+
     pub fn new_get(table: &TableName, columns: Vec<ColumnName>) -> Self {
         Query::Get {
             table: table.to_owned(),
@@ -295,7 +296,7 @@ pub struct DbContext {
 }
 
 impl DbContext {
-    pub fn new<P: AsRef<Path>>(path: P, table: TableName, config: Config) -> Result<Self, failure::Error> {
+    pub fn new<P: AsRef<Path>>(path: P, table: TableName) -> Result<Self, failure::Error> {
         Ok(DbContext {
             table,
             conn: Connection::open(path)
@@ -318,14 +319,14 @@ impl DbContext {
 pub trait Table {
     type Row;
 
-    fn get_all<'a>(db_context: &DbContext) -> Result<Vec<Self::Row>, failure::Error>;
-    fn insert<'a>(
+    fn get_all(db_context: &DbContext) -> Result<Vec<Self::Row>, failure::Error>;
+    fn insert(
         db_context: &DbContext,
         row: Self::Row,
     ) -> Result<(), failure::Error>;
-    fn delete<'a>(db_context: &DbContext, query: Query) -> Result<u32, failure::Error>;
-    fn update<'a>(db_context: &DbContext, query: Query) -> Result<u32, failure::Error>;
-    fn get<'a>(db_context: &DbContext, query: Query) -> Result<Vec<Self::Row>, failure::Error>;
+    fn delete(db_context: &DbContext, query: Query) -> Result<u32, failure::Error>;
+    fn update(db_context: &DbContext, query: Query) -> Result<u32, failure::Error>;
+    fn get(db_context: &DbContext, query: Query) -> Result<Vec<Self::Row>, failure::Error>;
 }
 
 #[derive(Debug)]

@@ -3,7 +3,7 @@ use crypto::digest::Digest;
 use crypto::sha3::Sha3;
 use directories::ProjectDirs;
 use failure::ResultExt;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer, Deserializer};
 use text_io::read;
 
 /// Application configuration struct.
