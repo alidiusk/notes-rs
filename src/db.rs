@@ -1,7 +1,11 @@
 use std::error::Error;
 use std::fmt;
+use std::path::Path;
 
-use rusqlite::Connection;
+use crate::config::Config;
+
+use failure::ResultExt;
+use rusqlite::{Connection, Transaction};
 
 /*
 
@@ -285,18 +289,43 @@ impl Query {
     }
 }
 
+pub struct DbContext {
+    pub table: TableName,
+    pub conn: Connection,
+}
+
+impl DbContext {
+    pub fn new<P: AsRef<Path>>(path: P, table: TableName, config: Config) -> Result<Self, failure::Error> {
+        Ok(DbContext {
+            table,
+            conn: Connection::open(path)
+                .with_context(|e| format!("Error establishing connection to the database: {}", e))?,
+        })
+    }
+
+    pub fn connection(&self) -> &Connection {
+        &self.conn
+    }
+
+    pub fn transaction(&mut self) -> Result<Transaction, failure::Error> {
+        Ok(self
+            .conn
+            .transaction()
+            .with_context(|e| format!("could not create database transaction: {}", e))?)
+    }
+}
+
 pub trait Table {
     type Row;
 
-    fn get_all<'a>(conn: &Connection, table: &TableName) -> Result<Vec<Self::Row>, failure::Error>;
+    fn get_all<'a>(db_context: &DbContext) -> Result<Vec<Self::Row>, failure::Error>;
     fn insert<'a>(
-        conn: &Connection,
-        table: &TableName,
+        db_context: &DbContext,
         row: Self::Row,
     ) -> Result<(), failure::Error>;
-    fn delete<'a>(conn: &Connection, query: Query) -> Result<u32, failure::Error>;
-    fn update<'a>(conn: &Connection, query: Query) -> Result<u32, failure::Error>;
-    fn get<'a>(conn: &Connection, query: Query) -> Result<Vec<Self::Row>, failure::Error>;
+    fn delete<'a>(db_context: &DbContext, query: Query) -> Result<u32, failure::Error>;
+    fn update<'a>(db_context: &DbContext, query: Query) -> Result<u32, failure::Error>;
+    fn get<'a>(db_context: &DbContext, query: Query) -> Result<Vec<Self::Row>, failure::Error>;
 }
 
 #[derive(Debug)]

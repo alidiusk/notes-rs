@@ -1,16 +1,16 @@
 // Get rid of dead code warnings for now
 #![allow(dead_code)]
 
-mod config;
+// mod config;
 mod db;
 mod models;
 
 use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
-use config::Config;
-use db::{Field, Query, Table, Where};
-use models::{DbContext, Note, NoteTable};
+// use config::Config;
+use db::{DbContext, Field, Query, Table, Where};
+use models::{Note, NoteTable};
 
 use chrono::{DateTime, Local};
 use directories::ProjectDirs;
@@ -87,12 +87,12 @@ fn get_notes_with_title(
         let field = title.to_string();
         let query = Query::new_get(&db_context.table, vec![title.to_owned()])
             .add_where(Where::Equal("title".to_string(), Field::Str(field)));
-        NoteTable::get(db_context.connection(), query)
+        NoteTable::get(&db_context, query)
     } else {
         let field = title.to_string();
         let query = Query::new_get(&db_context.table, vec![title.to_owned()])
             .add_where(Where::Like("title".to_string(), Field::Str(field)));
-        NoteTable::get(db_context.connection(), query)
+        NoteTable::get(&db_context, query)
     }
 }
 
@@ -105,12 +105,12 @@ fn delete_notes_with_title(
         let field = title.to_string();
         let query = Query::new_delete(&db_context.table)
             .add_where(Where::Equal("title".to_string(), Field::Str(field)));
-        NoteTable::delete(db_context.connection(), query)
+        NoteTable::delete(&db_context, query)
     } else {
         let field = title.to_string();
         let query = Query::new_delete(&db_context.table)
             .add_where(Where::Like("title".to_string(), Field::Str(field)));
-        NoteTable::delete(db_context.connection(), query)
+        NoteTable::delete(&db_context, query)
     }
 }
 
@@ -141,24 +141,24 @@ fn main() -> Result<(), ExitFailure> {
     let opt = Opt::from_args();
 
     // If there is no config currently present, generate a new config.
-    if !Config::config_exists()? {
-        Config::init_config_dialogue()?;
-    }
+    // if !Config::config_exists()? {
+    //     Config::init_config_dialogue()?;
+    // }
 
-    let encrypted = Config::is_encrypted()?;
+    // let encrypted = Config::is_encrypted()?;
 
-    if encrypted && Config::session_expired()? {
-        print!("Please enter your password: ");
-        let password: String = read!("{}\n");
+    // if encrypted && Config::session_expired()? {
+    //     print!("Please enter your password: ");
+    //     let password: String = read!("{}\n");
 
-        if Config::correct_hash(password)? {
-            Config::restore_session()?;
-        } else {
-            println!("Invalid password.");
+    //     if Config::correct_hash(password)? {
+    //         Config::restore_session()?;
+    //     } else {
+    //         println!("Invalid password.");
 
-            return Ok(());
-        }
-    }
+    //         return Ok(());
+    //     }
+    // }
 
     let project_dir = match ProjectDirs::from("", "", "Notes") {
         None => Err(failure::err_msg("Could not open local data directory."))
@@ -178,11 +178,9 @@ fn main() -> Result<(), ExitFailure> {
     }
 
     let path = dir.join("notes.db");
-    let mut db_context = DbContext::new(&path, "notes".to_string())?;
+    let db_context = DbContext::new(path, "notes".to_string())?;
 
-    let table = db_context.table.clone();
-
-    NoteTable::init_db(db_context.connection())?;
+    NoteTable::init_db(&db_context)?;
 
     match opt {
         Opt::New {
@@ -191,9 +189,9 @@ fn main() -> Result<(), ExitFailure> {
             title: Some(title),
             text: Some(text),
         } => {
-            let tx = db_context.transaction()?;
-            NoteTable::insert(&tx, &table, Note::new(&title, &text))?;
-            tx.commit()?;
+            // let tx = db_context.transaction()?;
+            NoteTable::insert(&db_context, Note::new(&title, &text))?;
+            // tx.commit()?;
         }
         Opt::New {
             file: Some(file),
@@ -219,15 +217,14 @@ fn main() -> Result<(), ExitFailure> {
             let created = get_time_created(&path)?;
             let text = get_file_contents(&path)?.to_string();
 
-            let tx = db_context.transaction()?;
+            // let tx = db_context.transaction()?;
             let note = Note {
                 title,
                 created,
                 text,
             };
-            NoteTable::insert(&tx, &table, note)?;
-            tx.commit()
-                .context("could not commit database transaction")?;
+            NoteTable::insert(&db_context, note)?;
+            // tx.commit()?;
         }
         Opt::New {
             file: None,
@@ -251,13 +248,12 @@ fn main() -> Result<(), ExitFailure> {
             let contents = fs::read_to_string(&file_path)
                 .with_context(|e| format!("could not get file contents: {}", e))?;
 
-            let tx = db_context.transaction()?;
+            // let tx = db_context.transaction()?;
 
             let note = Note::new(&title, &contents);
-            NoteTable::insert(&tx, &table, note)?;
+            NoteTable::insert(&db_context, note)?;
 
-            tx.commit()
-                .context("could not commit database transaction")?;
+            // tx.commit()?;
         }
         // Gets all notes with matching title
         Opt::Get {
@@ -285,7 +281,7 @@ fn main() -> Result<(), ExitFailure> {
             exact: false,
             title: None,
         } => {
-            for row in NoteTable::get_all(db_context.connection(), &db_context.table)? {
+            for row in NoteTable::get_all(&db_context)? {
                 println!("{}", row);
             }
         }
@@ -327,15 +323,14 @@ fn main() -> Result<(), ExitFailure> {
                 }
             };
 
-            let query = Query::new_update(&table, params)
+            let query = Query::new_update(&db_context.table, params)
                 .add_where(Where::Equal("title".to_string(), Field::Str(note_title)));
 
-            let tx = db_context.transaction()?;
+            // let tx = db_context.transaction()?;
 
-            NoteTable::update(&tx, query)?;
+            NoteTable::update(&db_context, query)?;
 
-            tx.commit()
-                .context("could not commit database transaction")?;
+            // tx.commit()?;
         }
         Opt::Delete {
             all: true,
@@ -356,7 +351,7 @@ fn main() -> Result<(), ExitFailure> {
             exact: false,
             title: None,
         } => {
-            for row in NoteTable::get_all(db_context.connection(), &db_context.table)? {
+            for row in NoteTable::get_all(&db_context)? {
                 println!("{}", row);
             }
         }

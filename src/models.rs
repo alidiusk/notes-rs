@@ -1,10 +1,8 @@
-use std::path::Path;
-
 use crate::db::*;
 
 use chrono::{DateTime, Local};
 use failure::ResultExt;
-use rusqlite::{params, Connection, Transaction, NO_PARAMS};
+use rusqlite::{params, NO_PARAMS};
 
 /*
 
@@ -20,32 +18,6 @@ for row in Note::query(conn, query) {
 */
 
 // NOTE: REMEMBER to row.get(n) for the correct n; n=0 is the primary key row id
-
-pub struct DbContext {
-    pub table: TableName,
-    conn: Connection,
-}
-
-impl DbContext {
-    pub fn new<P: AsRef<Path>>(path: P, table: TableName) -> Result<Self, failure::Error> {
-        Ok(DbContext {
-            table,
-            conn: Connection::open(path)
-                .with_context(|e| format!("Error establishing connection to the database: {}", e))?,
-        })
-    }
-
-    pub fn connection(&self) -> &Connection {
-        &self.conn
-    }
-
-    pub fn transaction(&mut self) -> Result<Transaction, failure::Error> {
-        Ok(self
-            .conn
-            .transaction()
-            .with_context(|e| format!("could not create database transaction: {}", e))?)
-    }
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Note {
@@ -74,8 +46,8 @@ impl std::fmt::Display for Note {
 pub struct NoteTable;
 
 impl NoteTable {
-    pub fn init_db(conn: &Connection) -> Result<(), failure::Error> {
-        conn.execute(
+    pub fn init_db(db_context: &DbContext) -> Result<(), failure::Error> {
+        db_context.conn.execute(
             "CREATE TABLE IF NOT EXISTS notes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL UNIQUE,
@@ -93,9 +65,9 @@ impl NoteTable {
 impl Table for NoteTable {
     type Row = Note;
 
-    fn get_all(conn: &Connection, table: &TableName) -> Result<Vec<Note>, failure::Error> {
-        Ok(conn
-            .prepare(&format!("SELECT * FROM {}", table))?
+    fn get_all(db_context: &DbContext) -> Result<Vec<Note>, failure::Error> {
+        Ok(db_context.conn
+            .prepare(&format!("SELECT * FROM {}", &db_context.table))?
             .query_map(NO_PARAMS, |row| {
                 Ok(Note {
                     // start at 1 because index 0 is the noteid
@@ -111,11 +83,11 @@ impl Table for NoteTable {
             .collect())
     }
 
-    fn insert(conn: &Connection, table: &TableName, row: Note) -> Result<(), failure::Error> {
-        conn.execute(
+    fn insert(db_context: &DbContext, row: Note) -> Result<(), failure::Error> {
+        db_context.conn.execute(
             &format!(
                 "INSERT INTO {} (title, created, text) VALUES (?1, ?2, ?3)",
-                table
+                &db_context.table
             ),
             params![row.title, row.created, row.text],
         )
@@ -123,25 +95,25 @@ impl Table for NoteTable {
         Ok(())
     }
 
-    fn delete(conn: &Connection, query: Query) -> Result<u32, failure::Error> {
+    fn delete(db_context: &DbContext, query: Query) -> Result<u32, failure::Error> {
         // Verify this is Query::Delete
         let query_string = &query.to_sql();
-        Ok(conn
+        Ok(db_context.conn
             .execute(query_string, NO_PARAMS)
             .context("could not delete note")? as u32)
     }
 
-    fn update(conn: &Connection, query: Query) -> Result<u32, failure::Error> {
+    fn update(db_context: &DbContext, query: Query) -> Result<u32, failure::Error> {
         let query_string = &query.to_sql();
 
-        Ok(conn
+        Ok(db_context.conn
             .execute(query_string, NO_PARAMS)
             .context("could not update note")? as u32)
     }
 
-    fn get(conn: &Connection, query: Query) -> Result<Vec<Note>, failure::Error> {
+    fn get(db_context: &DbContext, query: Query) -> Result<Vec<Note>, failure::Error> {
         let query_string = &query.to_sql();
-        Ok(conn
+        Ok(db_context.conn
             .prepare(query_string)?
             .query_map(NO_PARAMS, |row| {
                 Ok(Note {

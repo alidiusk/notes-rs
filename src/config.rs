@@ -8,24 +8,33 @@ use text_io::read;
 
 /// Application configuration struct.
 ///
-/// `pass_hash` stores the option of a hashed password, hashed using sha3_256.
-/// If `pass_hash` is `None`, then the database is not password encrypted.
+/// `key` stores the option of a hashed password, hashed using sha3_256.
+/// If `key` is `None`, then the database is not password encrypted.
 /// Otherwise, it contains a `Some(String)`, which is used to encrypt the
 /// text fields of the database.
 ///
 /// `session_expiration` stores the expiration time of the current session.
 /// Sessions currently are hardcoded to last 30 minutes until the user will
 /// have to enter their password to renew their session.
-#[derive(Serialize, Deserialize)]
 pub struct Config {
-    pass_hash: Option<String>,
+    key: Option<String>,
     session_expiration: DateTime<Utc>,
+}
+
+impl Serialize for Config {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Config", 2)?;
+        state.serialize_field("key", &self.pass_hash)?;
+    }
 }
 
 impl Config {
     /// Create a new configuration struct.
     pub fn new(password: Option<String>) -> Self {
-        let pass_hash = if password.is_some() {
+        let key = if password.is_some() {
             let mut hasher = Sha3::sha3_256();
             hasher.input_str(&password.unwrap());
 
@@ -39,7 +48,7 @@ impl Config {
         let session_expiration = Utc::now() + Duration::minutes(30);
 
         Config {
-            pass_hash,
+            key,
             session_expiration,
         }
     }
@@ -142,7 +151,7 @@ impl Config {
     pub fn is_encrypted() -> Result<bool, failure::Error> {
         let config = Config::load_config()?;
 
-        Ok(config.pass_hash.is_some())
+        Ok(config.key.is_some())
     }
 
     /// Checks whether a given password, when hashed, matches that of the configuration file.
@@ -150,11 +159,11 @@ impl Config {
         let mut hasher = Sha3::sha3_256();
         hasher.input_str(&password);
 
-        let pass_hash = hasher.result_str();
+        let key = hasher.result_str();
 
         let config = Config::load_config()?;
 
-        Ok(config.pass_hash == Some(pass_hash))
+        Ok(config.key == Some(pass_hash))
     }
 
     /// Checks whether the current session is expired.
@@ -162,7 +171,7 @@ impl Config {
         let config = Config::load_config()?;
 
         // No sessions if there isn't a password.
-        if config.pass_hash.is_none() {
+        if config.key.is_none() {
             Ok(false)
         } else {
             Ok(config.session_expiration <= Utc::now())
