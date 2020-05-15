@@ -5,7 +5,8 @@ use std::path::Path;
 // use crate::config::Config;
 
 use failure::ResultExt;
-use rusqlite::{Connection, Transaction};
+
+use sqlx::sqlite::Sqlite
 
 /*
 
@@ -57,13 +58,6 @@ pub enum Order {
 #[derive(Debug, PartialEq)]
 pub struct Limit(u32, u32);
 
-// #[derive(Debug, PartialEq)]
-// pub struct Query<'a> {
-//     where_clause: Option<Vec<Where<'a>>>,
-//     order_clause: Option<Order<'a>>,
-//     limit_clause: Option<u32>,
-// }
-
 #[derive(Debug, PartialEq)]
 pub enum Query {
     Get {
@@ -89,7 +83,6 @@ pub enum Query {
 }
 
 impl Query {
-
     pub fn new_get(table: &TableName, columns: Vec<ColumnName>) -> Self {
         Query::Get {
             table: table.to_owned(),

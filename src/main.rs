@@ -1,23 +1,17 @@
 // Get rid of dead code warnings for now
 #![allow(dead_code)]
 
-// mod config;
-mod db;
-mod models;
-
-use std::path::{Path, PathBuf};
-use std::{env, fs, process};
-
-// use config::Config;
-use db::{DbContext, Field, Query, Table, Where};
-use models::{Note, NoteTable};
+use crate::db::{DbContext, Field, Query, Table, Where};
+use crate::models::{Note, NoteTable};
 
 use chrono::{DateTime, Local};
 use directories::ProjectDirs;
 use exitfailure::ExitFailure;
 use failure::ResultExt;
 use structopt::StructOpt;
-// use text_io::read;
+
+use std::path::{Path, PathBuf};
+use std::{env, fs, process};
 
 /*
 
@@ -140,26 +134,6 @@ fn get_file_contents<P: AsRef<Path>>(path: P) -> Result<String, ExitFailure> {
 fn main() -> Result<(), ExitFailure> {
     let opt = Opt::from_args();
 
-    // If there is no config currently present, generate a new config.
-    // if !Config::config_exists()? {
-    //     Config::init_config_dialogue()?;
-    // }
-
-    // let encrypted = Config::is_encrypted()?;
-
-    // if encrypted && Config::session_expired()? {
-    //     print!("Please enter your password: ");
-    //     let password: String = read!("{}\n");
-
-    //     if Config::correct_hash(password)? {
-    //         Config::restore_session()?;
-    //     } else {
-    //         println!("Invalid password.");
-
-    //         return Ok(());
-    //     }
-    // }
-
     let project_dir = match ProjectDirs::from("", "", "Notes") {
         None => Err(failure::err_msg("Could not open local data directory."))
             .context("Could not get access to database.")?,
@@ -215,7 +189,7 @@ fn main() -> Result<(), ExitFailure> {
                     .expect("Could not get file name."),
             );
             let created = get_time_created(&path)?;
-            let text = get_file_contents(&path)?.to_string();
+            let text = get_file_contents(&path)?;
 
             // let tx = db_context.transaction()?;
             let note = Note {
