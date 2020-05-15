@@ -1,7 +1,6 @@
 // Get rid of dead code warnings for now
 #![allow(dead_code)]
 
-// use config::Config;
 use lib::db::{DbContext, Field, Query, Table, Where};
 use lib::models::{Note, NoteTable};
 
@@ -134,26 +133,6 @@ fn get_file_contents<P: AsRef<Path>>(path: P) -> Result<String, ExitFailure> {
 
 fn main() -> Result<(), ExitFailure> {
     let opt = Opt::from_args();
-
-    // If there is no config currently present, generate a new config.
-    // if !Config::config_exists()? {
-    //     Config::init_config_dialogue()?;
-    // }
-
-    // let encrypted = Config::is_encrypted()?;
-
-    // if encrypted && Config::session_expired()? {
-    //     print!("Please enter your password: ");
-    //     let password: String = read!("{}\n");
-
-    //     if Config::correct_hash(password)? {
-    //         Config::restore_session()?;
-    //     } else {
-    //         println!("Invalid password.");
-
-    //         return Ok(());
-    //     }
-    // }
 
     let project_dir = match ProjectDirs::from("", "", "Notes") {
         None => Err(failure::err_msg("Could not open local data directory."))
