@@ -2,9 +2,8 @@
 #![allow(dead_code)]
 
 // use config::Config;
-use lib::{db, models};
-use db::{DbContext, Field, Query, Table, Where};
-use models::{Note, NoteTable};
+use lib::db::{DbContext, Field, Query, Table, Where};
+use lib::models::{Note, NoteTable};
 
 use chrono::{DateTime, Local};
 use directories::ProjectDirs;
@@ -211,7 +210,7 @@ fn main() -> Result<(), ExitFailure> {
                     .expect("Could not get file name."),
             );
             let created = get_time_created(&path)?;
-            let text = get_file_contents(&path)?.to_string();
+            let text = get_file_contents(&path)?;
 
             // let tx = db_context.transaction()?;
             let note = Note {

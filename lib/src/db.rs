@@ -82,7 +82,6 @@ pub enum Query {
 }
 
 impl Query {
-
     pub fn new_get(table: &TableName, columns: Vec<ColumnName>) -> Self {
         Query::Get {
             table: table.to_owned(),
