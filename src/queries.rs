@@ -3,50 +3,48 @@ use sqlx::sqlite::SqlitePool;
 
 use crate::models::Note;
 
-pub async fn get_notes(pool: &SqlitePool, title: String) -> anyhow::Result<Vec<Note>> {
-    let notes = sqlx::query!(
-        r#"
-SELECT title, created, text
-FROM notes
-WHERE title LIKE $1
-        "#,
-        title
-    )
-    .fetch_all(pool)
-    .await?;
+pub async fn get_notes(pool: &SqlitePool, title: String, exact: bool) -> anyhow::Result<Vec<Note>> {
+    let notes: Vec<Note> = if exact {
+        let recs = sqlx::query!(
+            r#"
+    SELECT title, created, text
+    FROM notes
+    WHERE title = $1
+            "#,
+            title
+        )
+        .fetch_all(pool)
+        .await?;
 
-    let notes: Vec<Note> = notes.into_iter()
+    recs.into_iter()
         .map(|rec| {
             Note { 
                 title: rec.title,
                 created: rec.created.parse::<DateTime<Local>>().unwrap(),
                 text: rec.text,
             }
-        }).collect();
+        }).collect()
+    } else {
+        let recs = sqlx::query!(
+            r#"
+    SELECT title, created, text
+    FROM notes
+    WHERE title LIKE $1
+            "#,
+            title
+        )
+        .fetch_all(pool)
+        .await?;
 
-    Ok(notes)
-}
-
-pub async fn get_notes_exact(pool: &SqlitePool, title: String) -> anyhow::Result<Vec<Note>> {
-    let notes = sqlx::query!(
-        r#"
-SELECT title, created, text
-FROM notes
-WHERE title = $1
-        "#,
-        title
-    )
-    .fetch_all(pool)
-    .await?;
-
-    let notes: Vec<Note> = notes.into_iter()
+    recs.into_iter()
         .map(|rec| {
             Note { 
                 title: rec.title,
                 created: rec.created.parse::<DateTime<Local>>().unwrap(),
                 text: rec.text,
             }
-        }).collect();
+        }).collect()
+    };
 
     Ok(notes)
 }
@@ -89,35 +87,33 @@ VALUES ( $1, $2, $3 )
     Ok(())
 }
 
-pub async fn delete_note(pool: &SqlitePool, title: String) -> anyhow::Result<()> {
-    sqlx::query!(
-        r#"
-DELETE FROM notes
-WHERE title = $1
-        "#,
-        title
-    )
-    .execute(pool)
-    .await?;
+pub async fn delete_notes(pool: &SqlitePool, title: String, exact: bool) -> anyhow::Result<()> {
+    if exact {
+        sqlx::query!(
+            r#"
+    DELETE FROM notes
+    WHERE title = $1
+            "#,
+            title
+        )
+        .execute(pool)
+        .await?;
+    } else {
+        sqlx::query!(
+            r#"
+    DELETE FROM notes
+    WHERE title LIKE $1
+            "#,
+            title
+        )
+        .execute(pool)
+        .await?;
+    }
 
     Ok(())
 }
 
-pub async fn delete_note_like(pool: &SqlitePool, title: String) -> anyhow::Result<()> {
-    sqlx::query!(
-        r#"
-DELETE FROM notes
-WHERE title LIKE $1
-        "#,
-        title
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn update_note(pool: &SqlitePool, title: String, note: Note) -> anyhow::Result<()> {
+pub async fn update_notes(pool: &SqlitePool, title: String, note: Note) -> anyhow::Result<()> {
     sqlx::query!(
         r#"
 UPDATE notes

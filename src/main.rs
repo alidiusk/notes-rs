@@ -158,11 +158,7 @@ async fn main() -> anyhow::Result<()> {
                     println!("{}", note);
                 }
             } else {
-                let notes = if exact {
-                    get_notes_exact(&pool, title.unwrap()).await?
-                } else {
-                    get_notes(&pool, title.unwrap()).await?
-                };
+                let notes = get_notes(&pool, title.unwrap(), exact).await?;
 
                 for note in notes {
                     println!("{}", note);
@@ -170,21 +166,17 @@ async fn main() -> anyhow::Result<()> {
             }
         },
         Some(Command::Edit { note_title, title, text }) => {
-            if let Some(original) = get_notes_exact(&pool, note_title.clone()).await?.get(0) {
+            if let Some(original) = get_notes(&pool, note_title.clone(), true).await?.get(0) {
                 let title = title.unwrap_or(original.title.clone());
                 let text = text.unwrap_or(original.text.clone());
                 let created = original.created;
                 let new_note = Note { title, created, text };
 
-                update_note(&pool, note_title, new_note).await?;
+                update_notes(&pool, note_title, new_note).await?;
             }
         },
         Some(Command::Delete { exact, title }) => {
-            if exact {
-                delete_note(&pool, title).await?;
-            } else {
-                delete_note_like(&pool, title).await?;
-            }
+            delete_notes(&pool, title, exact).await?;
         },
         None => {
             let notes = get_all_notes(&pool).await?;
