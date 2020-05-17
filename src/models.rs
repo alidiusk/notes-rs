@@ -1,32 +1,37 @@
+use std::fmt;
+
 use chrono::{DateTime, Local};
 use colored::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Note {
-    pub title: String,
+    pub id: i32,
     pub created: DateTime<Local>,
-    pub text: String,
+    pub content: String,
 }
 
 impl Note {
-    pub fn new(title: String, text: String) -> Note {
+    pub fn new(id: i32, content: String) -> Note {
         Note {
-            title,
+            id,
             created: Local::now(),
-            text,
+            content,
         }
+    }
+
+    pub fn created_string(&self) -> String {
+        self.created.format("%Y-%m-%d %H:%M:%S").to_string()
+    }
+
+    pub fn id_string(&self) -> String {
+        "[".to_string() + &self.id.to_string() + "]"
     }
 }
 
-impl std::fmt::Display for Note {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let date = "[".to_string() + &self.created.format("%Y-%m-%d %H:%M:%S").to_string() + "]";
-        write!(
-            f,
-            "{} {}: \"{}\"",
-            date.bold(),
-            self.title.bold(),
-            self.text
-        )
+impl fmt::Display for Note {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let date = "[".to_string() + &self.created_string() + "]";
+        let id = "[".to_string() + &self.id.to_string() + "]";
+        write!(f, "{} {} \"{}\"", id.bold(), date.bold(), self.content)
     }
 }

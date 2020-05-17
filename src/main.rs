@@ -1,10 +1,12 @@
 #![allow(dead_code)]
 
 mod models;
-mod queries;
+mod db;
+mod print;
 
 use crate::models::Note;
-use crate::queries::*;
+use crate::db::*;
+use crate::print::Table;
 
 use chrono::{DateTime, Local};
 use directories::ProjectDirs;
@@ -36,41 +38,31 @@ enum Command {
         file: Option<PathBuf>,
         /// Open new file with given title in default editor, use contents to create a new note
         #[structopt(short, long, conflicts_with = "file")]
-        editor: Option<String>,
-        #[structopt(name = "title", required_unless_one = &["file", "editor"], conflicts_with_all = &["file", "editor"])]
-        title: Option<String>,
-        #[structopt(name = "text", required_unless_one = &["file", "editor"], conflicts_with_all = &["file", "editor"])]
-        text: Option<String>,
+        editor: bool,
+        #[structopt(name = "content", required_unless_one = &["file", "editor"], conflicts_with_all = &["file", "editor"])]
+        content: Option<String>,
     },
     /// Retrieve an existing note.
     Get {
         /// Returns all notes
         #[structopt(short, long)]
         all: bool,
-        /// Only return notes that exactly match the designated title
-        #[structopt(short, long, requires = "title")]
-        exact: bool,
-        /// Returns first note that matches the title, or all notes if `all` is specified.
-        #[structopt(short, long, required_unless = "all")]
-        title: Option<String>,
+        /// Returns the note with the matching id.
+        #[structopt(name = "note_id", required_unless = "all")]
+        id: Option<i32>,
     },
     /// Edit an existing note.
     Edit {
-        #[structopt(name = "note_title")]
-        note_title: String,
-        #[structopt(long, required_unless = "text")]
-        title: Option<String>,
-        #[structopt(long, required_unless = "title")]
-        text: Option<String>,
+        #[structopt(name = "note_id")]
+        id: i32,
+        #[structopt(name = "content")]
+        content: String,
     },
     /// Delete an existing note.
     Delete {
-        /// Only deletes notes that exactly match the designated title
-        #[structopt(short, long, requires = "title")]
-        exact: bool,
-        /// Deletes first note that matches the title, or all notes that match the title if `all` is specified.
-        #[structopt(short, long)]
-        title: String,
+        /// Deletes the note with the corresponding id.
+        #[structopt(name = "note_id")]
+        id: i32,
     },
 }
 
@@ -113,24 +105,20 @@ async fn main() -> anyhow::Result<()> {
     let pool = sqlx::SqlitePool::new(&path).await?;
 
     match args.cmd {
-        Some(Command::New { file, editor, title, text }) => {
+        Some(Command::New { file, editor, content }) => {
             let note = {
                 if let Some(path) = file {
                     if file_is_dir(&path)? {
                         panic!("File is a directory!");
                     }
 
-                    let title = String::from(
-                        path.file_stem()
-                            .expect("Could not get file name")
-                            .to_str()
-                            .expect("Could not get file name")
-                    );
+                    // fakee id
+                    let id = 0;
                     let created = get_time_created(&path)?;
-                    let text = get_file_contents(&path)?;
+                    let content = get_file_contents(&path)?;
 
-                    Note { title, created, text }
-                } else if let Some(path) = editor {
+                    Note { id, created, content }
+                } else if editor {
                     let editor = env::var("EDITOR")?;
                     let mut file_path = env::temp_dir();
                     file_path.push("temp");
@@ -144,46 +132,44 @@ async fn main() -> anyhow::Result<()> {
 
                     // let tx = db_context.transaction()?;
 
-                    Note::new(path, contents)
+                    Note::new(0, contents)
                 } else {
-                    Note::new(title.unwrap(), text.unwrap())
+                    Note::new(0, content.unwrap())
                 }
             };
 
             insert_note(&pool, note).await?;
         },
-        Some(Command::Get { all, exact, title }) => {
+        Some(Command::Get { all, id }) => {
             if all {
-                for note in get_all_notes(&pool).await? {
-                    println!("{}", note);
-                }
+                let notes = get_all_notes(&pool).await?;
+
+                println!("{}", Table::new(notes));
             } else {
-                let notes = get_notes(&pool, title.unwrap(), exact).await?;
+                let note = get_note(&pool, id.unwrap()).await?;
 
-                for note in notes {
-                    println!("{}", note);
+                if let Some(note) = note {
+                    println!("{}", Table::new(vec![note]));
+                } else {
+                    println!("No note found.");
                 }
             }
         },
-        Some(Command::Edit { note_title, title, text }) => {
-            if let Some(original) = get_notes(&pool, note_title.clone(), true).await?.get(0) {
-                let title = title.unwrap_or(original.title.clone());
-                let text = text.unwrap_or(original.text.clone());
+        Some(Command::Edit { id, content }) => {
+            if let Some(original) = get_note(&pool, id).await? {
                 let created = original.created;
-                let new_note = Note { title, created, text };
+                let new_note = Note { id, created, content };
 
-                update_notes(&pool, note_title, new_note).await?;
+                update_note(&pool, id, new_note).await?;
             }
         },
-        Some(Command::Delete { exact, title }) => {
-            delete_notes(&pool, title, exact).await?;
+        Some(Command::Delete { id }) => {
+            delete_note(&pool, id).await?;
         },
         None => {
             let notes = get_all_notes(&pool).await?;
 
-            for note in notes {
-                println!("{}", note);
-            }
+            println!("{}", Table::new(notes));
         }
     }
 
