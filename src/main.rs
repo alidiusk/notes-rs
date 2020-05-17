@@ -1,26 +1,19 @@
 #![allow(dead_code)]
 
-mod models;
-mod db;
+mod errors;
+mod notes;
 mod print;
+mod util;
 
-use crate::models::Note;
-use crate::db::*;
+use crate::notes::{Note, Notes};
 use crate::print::Table;
+use crate::util::*;
 
-use chrono::{DateTime, Local};
 use directories::ProjectDirs;
 use structopt::StructOpt;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::{env, fs, process};
-
-/*
-
-notes new -f note.txt
-notes new "Day 12" "Today in my diary..."
-
-*/
 
 #[derive(StructOpt, Debug)]
 struct Args {
@@ -49,12 +42,12 @@ enum Command {
         all: bool,
         /// Returns the note with the matching id.
         #[structopt(name = "note_id", required_unless = "all")]
-        id: Option<i32>,
+        id: Option<usize>,
     },
     /// Edit an existing note.
     Edit {
         #[structopt(name = "note_id")]
-        id: i32,
+        id: usize,
         #[structopt(name = "content")]
         content: String,
     },
@@ -62,28 +55,8 @@ enum Command {
     Delete {
         /// Deletes the note with the corresponding id.
         #[structopt(name = "note_id")]
-        id: i32,
+        id: usize,
     },
-}
-
-fn file_is_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<bool> {
-    let metadata = fs::metadata(path)?;
-    Ok(metadata.is_dir())
-}
-
-fn get_time_created<P: AsRef<Path>>(path: P) -> anyhow::Result<DateTime<Local>> {
-    let metadata = fs::metadata(path)?;
-    let time = metadata.created();
-
-    match time {
-        Ok(time) => Ok(DateTime::<Local>::from(time)),
-        Err(e) => Err(e.into()),
-    }
-}
-
-fn get_file_contents<P: AsRef<Path>>(path: P) -> anyhow::Result<String> {
-    let contents = fs::read_to_string(&path)?;
-    Ok(contents.trim().to_string())
 }
 
 #[async_std::main]
@@ -98,11 +71,15 @@ async fn main() -> anyhow::Result<()> {
         fs::create_dir(dir)?;
     }
 
-    let path = String::from("sqlite://") 
-        + &dir.join(dir).join("notes.db").to_str().unwrap().to_string();
-    // let path = std::env::var("DATABASE_URL")?;
+    let path = &dir.join(dir).join("notes");
+    let path_str = &path.to_str().unwrap().to_string();
 
-    let pool = sqlx::SqlitePool::new(&path).await?;
+    if !path.exists() {
+        let notes = Notes::new(vec![]);
+        notes.to_file(path_str)?;
+    }
+
+    let mut notes = Notes::from_file(path_str)?;
 
     match args.cmd {
         Some(Command::New { file, editor, content }) => {
@@ -113,11 +90,10 @@ async fn main() -> anyhow::Result<()> {
                     }
 
                     // fakee id
-                    let id = 0;
                     let created = get_time_created(&path)?;
                     let content = get_file_contents(&path)?;
 
-                    Note { id, created, content }
+                    Note::new_with_time(content, created)
                 } else if editor {
                     let editor = env::var("EDITOR")?;
                     let mut file_path = env::temp_dir();
@@ -132,46 +108,53 @@ async fn main() -> anyhow::Result<()> {
 
                     // let tx = db_context.transaction()?;
 
-                    Note::new(0, contents)
+                    Note::new(contents)
                 } else {
-                    Note::new(0, content.unwrap())
+                    Note::new(content.unwrap())
                 }
             };
 
-            insert_note(&pool, note).await?;
+            let id = notes.push(note);
+
+            println!("Note with ID {} created.", id);
         },
         Some(Command::Get { all, id }) => {
             if all {
-                let notes = get_all_notes(&pool).await?;
-
-                println!("{}", Table::new(notes));
+                if let Some(notes) = notes.get_all_with_id() {
+                    println!("{}", Table::new(notes));
+                } else {
+                    println!("There are no notes.");
+                }
             } else {
-                let note = get_note(&pool, id.unwrap()).await?;
+                let note = notes.get(id.unwrap());
 
                 if let Some(note) = note {
-                    println!("{}", Table::new(vec![note]));
+                    println!("{}", Table::new(vec![(id.unwrap(), note)]));
                 } else {
                     println!("No note found.");
                 }
             }
         },
         Some(Command::Edit { id, content }) => {
-            if let Some(original) = get_note(&pool, id).await? {
-                let created = original.created;
-                let new_note = Note { id, created, content };
+            let new_note = notes.edit(id, content)?;
 
-                update_note(&pool, id, new_note).await?;
-            }
+            println!("Note {} edited: {}", id, new_note.content);
         },
         Some(Command::Delete { id }) => {
-            delete_note(&pool, id).await?;
+            let note = notes.delete(id)?;
+
+            println!("Note `{}: {}` deleted.", id, note.content);
         },
         None => {
-            let notes = get_all_notes(&pool).await?;
-
-            println!("{}", Table::new(notes));
+            if let Some(notes) = notes.get_all_with_id() {
+                println!("{}", Table::new(notes));
+            } else {
+                println!("There are no notes.");
+            }
         }
     }
+
+    notes.to_file(path_str)?;
 
     Ok(())
 }

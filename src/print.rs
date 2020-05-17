@@ -2,15 +2,15 @@ use std::fmt;
 
 use colored::*;
 
-use crate::models::Note;
+use crate::notes::Note;
 
-pub struct Table {
+pub struct Table<'a> {
     column_widths: [usize; 3],
-    notes: Vec<Note>,
+    notes: Vec<(usize, &'a Note)>,
 }
 
-impl Table {
-    pub fn new(notes: Vec<Note>) -> Self {
+impl<'a> Table<'a> {
+    pub fn new(notes: Vec<(usize, &'a Note)>) -> Self {
         let column_widths = Table::compute_column_widths(notes.as_slice());
 
         Table {
@@ -19,9 +19,9 @@ impl Table {
         }
     }
 
-    pub fn compute_column_widths(notes: &[Note]) -> [usize; 3] {
-        notes.iter().fold([0, 0, 0], |mut arr, note| {
-            arr[0] = usize::max(arr[0], note.id_string().len());
+    pub fn compute_column_widths(notes: &[(usize, &Note)]) -> [usize; 3] {
+        notes.iter().fold([0, 0, 0], |mut arr, (i, note)| {
+            arr[0] = usize::max(arr[0], i.to_string().len() + 2);
             arr[1] = usize::max(arr[1], note.created_string().len());
             arr[2] = usize::max(arr[2], note.content.len());
 
@@ -41,10 +41,11 @@ impl Table {
         )
     }
 
-    pub fn render_row(&self, note: &Note) -> String {
+    pub fn render_row(&self, index: usize, note: &Note) -> String {
+        let id = "[".to_string() + &index.to_string() + "]";
         format!(
             "{:id$} {:created$} {:content$}",
-            note.id_string().bold(),
+            id.bold(),
             note.created_string().bold(),
             note.content,
             id = self.column_widths[0],
@@ -54,13 +55,12 @@ impl Table {
     }
 }
 
-impl fmt::Display for Table {
+impl<'a> fmt::Display for Table<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let rows = self
             .notes
-            .clone()
-            .into_iter()
-            .map(|note| self.render_row(&note) + "\n")
+            .iter()
+            .map(|(i, note)| self.render_row(*i, note) + "\n")
             .collect::<String>();
         let header = self.render_header();
 
@@ -71,36 +71,41 @@ impl fmt::Display for Table {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::notes::Notes;
 
     #[test]
     fn compute_column_widths() {
-        let notes = vec![
-            Note::new(1, "12345678".to_string()),
-            Note::new(132, "123456".to_string()),
-            Note::new(21, "".to_string()),
-        ];
+        let notes = Notes::new(vec![
+            Note::new("12345678".to_string()),
+            Note::new("123456".to_string()),
+            Note::new("".to_string()),
+        ]);
 
-        // [5, 19, 8]
-        let expected: [usize; 3] = ["[132]".len(), "2020-02-28 17:05:29".len(), "12345678".len()];
+        // [3, 19, 8]
+        let expected: [usize; 3] = ["[1]".len(), "2020-02-28 17:05:29".len(), "12345678".len()];
 
-        assert_eq!(expected, Table::compute_column_widths(notes.as_slice()));
+        assert_eq!(
+            expected,
+            Table::compute_column_widths(notes.get_all_with_id().unwrap().as_slice())
+        );
     }
 
     #[test]
     fn render_header() {
-        let notes = vec![
-            Note::new(1, "12345678".to_string()),
-            Note::new(132, "123456".to_string()),
-            Note::new(21, "".to_string()),
-        ];
-        let table = Table::new(notes);
+        let notes = Notes::new(vec![
+            Note::new("12345678".to_string()),
+            Note::new("123456".to_string()),
+            Note::new("".to_string()),
+        ]);
+
+        let table = Table::new(notes.get_all_with_id().unwrap());
 
         let expected = format!(
             "{:id$} {:created$} {:content$}",
             "ID".underline(),
             "Created".underline(),
             "Content".underline(),
-            id = "[132]".len(),
+            id = "[3]".len(),
             created = "2020-02-28 17:05:29".len(),
             content = "12345678".len(),
         );
