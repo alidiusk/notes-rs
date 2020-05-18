@@ -100,7 +100,7 @@ impl Notes {
     pub fn push(&mut self, note: Note) -> usize {
         self.0.push(note);
 
-        self.len()
+        self.len() - 1
     }
 
     /// Returns an error if index is out of range; otherwise, returns the

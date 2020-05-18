@@ -17,6 +17,8 @@ use std::{env, fs, process};
 
 #[derive(StructOpt, Debug)]
 struct Args {
+    #[structopt(name = "content", conflicts_with = "cmd")]
+    content: Option<String>,
     #[structopt(subcommand)]
     cmd: Option<Command>,
 }
@@ -146,7 +148,11 @@ async fn main() -> anyhow::Result<()> {
             println!("Note `{}: {}` deleted.", id, note.content);
         },
         None => {
-            if let Some(notes) = notes.get_all_with_id() {
+            if let Some(content) = args.content {
+                let id = notes.push(Note::new(content));
+
+                println!("Note with ID {} created.", id);
+            } else if let Some(notes) = notes.get_all_with_id() {
                 println!("{}", Table::new(notes));
             } else {
                 println!("There are no notes.");
