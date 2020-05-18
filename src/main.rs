@@ -16,17 +16,22 @@ use std::path::PathBuf;
 use std::{env, fs, process};
 
 #[derive(StructOpt, Debug)]
-struct Args {
-    #[structopt(name = "content", conflicts_with = "cmd")]
-    content: Option<String>,
+struct App {
     #[structopt(subcommand)]
-    cmd: Option<Command>,
+    args: Option<Args>,
+}
+
+#[derive(StructOpt, Debug)]
+enum Args {
+    #[structopt(flatten)]
+    Command(Command),
+    #[structopt(external_subcommand)]
+    Content(Vec<String>),
 }
 
 #[derive(StructOpt, Debug)]
 enum Command {
     /// Create a new note.
-    #[structopt(name = "new")]
     New {
         /// Create a new note from file
         #[structopt(short, long, conflicts_with = "editor")]
@@ -62,7 +67,7 @@ enum Command {
 }
 
 fn main() -> anyhow::Result<()> {
-    let args = Args::from_args();
+    let app = App::from_args();
 
     let project_dir = ProjectDirs::from("", "", "Notes").unwrap();
 
@@ -82,8 +87,22 @@ fn main() -> anyhow::Result<()> {
 
     let mut notes = Notes::from_file(path_str)?;
 
-    match args.cmd {
-        Some(Command::New {
+    if let Some(args) = app.args {
+        handle_args(args, &mut notes)?;
+    } else if let Some(notes) = notes.get_all_with_id() {
+        println!("{}", Table::new(notes));
+    } else {
+        println!("There are no notes.");
+    }
+
+    notes.to_file(path_str)?;
+
+    Ok(())
+}
+
+fn handle_args(args: Args, notes: &mut Notes) -> anyhow::Result<()> {
+    match args {
+        Args::Command(Command::New {
             file,
             editor,
             content,
@@ -121,7 +140,7 @@ fn main() -> anyhow::Result<()> {
 
             println!("Note with ID {} created.", id);
         }
-        Some(Command::Get { all, id }) => {
+        Args::Command(Command::Get { all, id }) => {
             if all {
                 if let Some(notes) = notes.get_all_with_id() {
                     println!("{}", Table::new(notes));
@@ -138,30 +157,22 @@ fn main() -> anyhow::Result<()> {
                 }
             }
         }
-        Some(Command::Edit { id, content }) => {
+        Args::Command(Command::Edit { id, content }) => {
             let new_note = notes.edit(id, content)?;
 
             println!("Note {} edited: {}", id, new_note.content);
         }
-        Some(Command::Delete { id }) => {
+        Args::Command(Command::Delete { id }) => {
             let note = notes.delete(id)?;
 
             println!("Note `{}: {}` deleted.", id, note.content);
         }
-        None => {
-            if let Some(content) = args.content {
-                let id = notes.push(Note::new(content));
+        Args::Content(content) => {
+            let id = notes.push(Note::new(content.join(" ")));
 
-                println!("Note with ID {} created.", id);
-            } else if let Some(notes) = notes.get_all_with_id() {
-                println!("{}", Table::new(notes));
-            } else {
-                println!("There are no notes.");
-            }
+            println!("Note with ID {} created.", id);
         }
     }
-
-    notes.to_file(path_str)?;
 
     Ok(())
 }
