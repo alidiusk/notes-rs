@@ -113,14 +113,25 @@ mod tests {
         assert_eq!(expected, table.render_header());
     }
 
-    // #[test]
-    // fn render_row() -> {
-    //     let notes = vec![
-    //         Note::new("1234".to_string(), "12345678".to_string()),
-    //         Note::new("12".to_string(), "123456".to_string()),
-    //         Note::new("1234567890".to_string(), "".to_string()),
-    //     ];
-    //
-    //     let table = Table::new(notes);
-    // }
+    #[test]
+    fn render_row() {
+        let vec_notes = vec![
+            Note::new("12345678".to_string()),
+            Note::new("123456".to_string()),
+            Note::new("".to_string()),
+        ];
+
+        let notes = Notes::new(vec_notes.clone());
+
+        let table = Table::new(notes.get_all_with_id().unwrap());
+
+        let expected = format!(
+            "{:3} {:19} {:8}",
+            "[1]".bold(),
+            notes.get(1).unwrap().created_string().bold(),
+            "123456"
+        );
+
+        assert_eq!(expected, table.render_row(1, &vec_notes[1]));
+    }
 }
