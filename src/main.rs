@@ -61,8 +61,7 @@ enum Command {
     },
 }
 
-#[async_std::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let args = Args::from_args();
 
     let project_dir = ProjectDirs::from("", "", "Notes").unwrap();
@@ -84,7 +83,11 @@ async fn main() -> anyhow::Result<()> {
     let mut notes = Notes::from_file(path_str)?;
 
     match args.cmd {
-        Some(Command::New { file, editor, content }) => {
+        Some(Command::New {
+            file,
+            editor,
+            content,
+        }) => {
             let note = {
                 if let Some(path) = file {
                     if file_is_dir(&path)? {
@@ -102,9 +105,7 @@ async fn main() -> anyhow::Result<()> {
                     file_path.push("temp");
                     fs::File::create(&file_path)?;
 
-                    process::Command::new(editor)
-                        .arg(&file_path)
-                        .status()?;
+                    process::Command::new(editor).arg(&file_path).status()?;
 
                     let contents = fs::read_to_string(&file_path)?;
 
@@ -119,7 +120,7 @@ async fn main() -> anyhow::Result<()> {
             let id = notes.push(note);
 
             println!("Note with ID {} created.", id);
-        },
+        }
         Some(Command::Get { all, id }) => {
             if all {
                 if let Some(notes) = notes.get_all_with_id() {
@@ -136,17 +137,17 @@ async fn main() -> anyhow::Result<()> {
                     println!("No note found.");
                 }
             }
-        },
+        }
         Some(Command::Edit { id, content }) => {
             let new_note = notes.edit(id, content)?;
 
             println!("Note {} edited: {}", id, new_note.content);
-        },
+        }
         Some(Command::Delete { id }) => {
             let note = notes.delete(id)?;
 
             println!("Note `{}: {}` deleted.", id, note.content);
-        },
+        }
         None => {
             if let Some(content) = args.content {
                 let id = notes.push(Note::new(content));
