@@ -1,6 +1,6 @@
 use std::fmt;
 
-use colored::*;
+use console::style;
 
 use crate::notes::Note;
 
@@ -30,11 +30,13 @@ impl<'a> Table<'a> {
     }
 
     pub fn render_header(&self) -> String {
+        // NOTE: consider not styling if this isn't a tty;
+
         format!(
             "{:id$} {:created$} {:content$}",
-            "ID".underline(),
-            "Created".underline(),
-            "Content".underline(),
+            style("ID").underlined(),
+            style("Created").underlined(),
+            style("Content").underlined(),
             id = self.column_widths[0],
             created = self.column_widths[1],
             content = self.column_widths[2],
@@ -43,15 +45,21 @@ impl<'a> Table<'a> {
 
     pub fn render_row(&self, index: usize, note: &Note) -> String {
         let id = "[".to_string() + &index.to_string() + "]";
+
+        // NOTE: consider not styling if this isn't a tty;
         format!(
             "{:id$} {:created$} {:content$}",
-            id.bold(),
-            note.created_string().bold(),
+            style(id).bold(),
+            style(note.created_string()).bold(),
             note.content,
             id = self.column_widths[0],
             created = self.column_widths[1],
             content = self.column_widths[2],
         )
+    }
+
+    pub fn row_width(&self) -> u32 {
+        self.column_widths.iter().sum::<usize>() as u32
     }
 }
 
@@ -102,9 +110,9 @@ mod tests {
 
         let expected = format!(
             "{:id$} {:created$} {:content$}",
-            "ID".underline(),
-            "Created".underline(),
-            "Content".underline(),
+            style("ID").underlined(),
+            style("Created").underlined(),
+            style("Content").underlined(),
             id = "[3]".len(),
             created = "2020-02-28 17:05:29".len(),
             content = "12345678".len(),
@@ -127,8 +135,8 @@ mod tests {
 
         let expected = format!(
             "{:3} {:19} {:8}",
-            "[1]".bold(),
-            notes.get(1).unwrap().created_string().bold(),
+            style("[1]").bold(),
+            style(notes.get(1).unwrap().created_string()).bold(),
             "123456"
         );
 

@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::Path;
 
 use anyhow::Error;
 use chrono::{DateTime, Local};
@@ -43,7 +44,7 @@ impl Notes {
 
     /// Attempts to read a given file and serialize it into a Notes
     /// struct.
-    pub fn from_file(path: &str) -> anyhow::Result<Self> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let buf = fs::read_to_string(path)?;
 
         Ok(bincode::deserialize::<Notes>(buf.as_bytes())?)
@@ -51,7 +52,7 @@ impl Notes {
 
     /// Serializes the structure to bytes and writes it to the
     /// given file.
-    pub fn to_file(&self, path: &str) -> anyhow::Result<()> {
+    pub fn to_file<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let serialized = bincode::serialize(self)?;
 
         fs::write(path, serialized.as_slice())?;
