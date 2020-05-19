@@ -7,7 +7,7 @@ use structopt::StructOpt;
 
 use crate::errors::NotesError;
 use crate::notes::{Note, Notes};
-use crate::print::Table;
+use crate::table::Table;
 use crate::util::*;
 
 #[derive(StructOpt, Debug)]

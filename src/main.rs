@@ -3,7 +3,7 @@
 mod app;
 mod errors;
 mod notes;
-mod print;
+mod table;
 mod util;
 
 use std::fs;
