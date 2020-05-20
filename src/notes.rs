@@ -3,11 +3,56 @@ use std::path::Path;
 
 use anyhow::Error;
 use chrono::{DateTime, Local};
+use colored::*;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::NotesError;
+use crate::table::{Row, Table};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub type NoteTable = Table<NoteWithId>;
+
+#[derive(Debug, Clone)]
+pub struct NoteWithId {
+    pub id: usize,
+    pub created: DateTime<Local>,
+    pub content: String,
+}
+
+impl NoteWithId {
+    /// Takes a note and it's ID to make a NoteWithId.
+    pub fn from_note(id: usize, note: Note) -> NoteWithId {
+        NoteWithId {
+            id,
+            created: note.created,
+            content: note.content,
+        }
+    }
+
+    /// Returns a formatted string of the creation time.
+    pub fn created_string(&self) -> String {
+        self.created.format("%Y-%m-%d %H:%M:%S").to_string()
+    }
+}
+
+impl Row for NoteWithId {
+    fn row(&self) -> Vec<ColoredString> {
+        vec![
+            self.id.to_string().bold(),
+            self.created_string().bold(),
+            self.content.clone().as_str().into(),
+        ]
+    }
+
+    fn header() -> Vec<ColoredString> {
+        vec![
+            "ID".underline(),
+            "Created".underline(),
+            "Content".underline(),
+        ]
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Note {
     pub created: DateTime<Local>,
     pub content: String,
@@ -77,12 +122,12 @@ impl Notes {
 
     /// Returns a Vec of note references and their corresponding
     /// index.
-    pub fn get_all_with_id(&self) -> Option<Vec<(usize, &Note)>> {
+    pub fn get_all_with_id(&self) -> Option<Vec<NoteWithId>> {
         if self.len() > 0 {
             let mut notes = vec![];
 
-            for e in self.0.iter().enumerate() {
-                notes.push(e);
+            for (i, n) in self.0.iter().enumerate() {
+                notes.push(NoteWithId::from_note(i, n.clone()));
             }
 
             Some(notes)
@@ -95,6 +140,14 @@ impl Notes {
     /// it returns None.
     pub fn get(&self, index: usize) -> Option<&Note> {
         self.0.get(index)
+    }
+
+    /// Gets the note and its ID at the given index if it is within bounds;
+    /// otherwise, it returns None.
+    pub fn get_with_id(&self, index: usize) -> Option<NoteWithId> {
+        self.0
+            .get(index)
+            .map(|n| NoteWithId::from_note(index, n.clone()))
     }
 
     /// Pushes a new note onto the Vec and returns the note ID.

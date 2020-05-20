@@ -2,12 +2,10 @@ use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
 use anyhow::Error;
-use console::{style, Color, Term};
 use structopt::StructOpt;
 
 use crate::errors::NotesError;
-use crate::notes::{Note, Notes};
-use crate::table::Table;
+use crate::notes::{Note, NoteTable, Notes};
 use crate::util::*;
 
 #[derive(StructOpt, Debug)]
@@ -69,8 +67,8 @@ pub fn run_app(app: App, notes: &mut Notes) -> anyhow::Result<()> {
     if let Some(args) = app.args {
         handle_args(args, notes)?;
     } else if let Some(notes) = notes.get_all_with_id() {
-        let table = Table::new(notes);
-        print_table(table);
+        let table = NoteTable::new(notes);
+        println!("{}", table);
     } else {
         println!("There are no notes.");
     }
@@ -111,41 +109,21 @@ fn handle_args(args: Args, notes: &mut Notes) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Prints table and width alert, if applicable.
-fn print_table(table: Table) {
-    println!("{}", table);
-    check_width_and_alert(&table);
-}
-
-/// Alert users if table rows do not fit within terminal properly.
-fn check_width_and_alert(table: &Table) {
-    let (_, term_width) = Term::stdout().size();
-    let table_width = table.row_width();
-
-    if table_width > term_width as u32 {
-        let alert = format!(
-            "Table rows of width {} do not fit within the terminal width of {}",
-            table_width, term_width,
-        );
-        println!("{}", style(alert).bg(Color::Red));
-    }
-}
-
 /// Processes a user query for note(s) and prints it to stdout.
 fn run_get_note(notes: &Notes, all: bool, id: Option<usize>) -> anyhow::Result<()> {
     if all {
         if let Some(notes) = notes.get_all_with_id() {
-            let table = Table::new(notes);
-            print_table(table);
+            let table = NoteTable::new(notes);
+            println!("{}", table);
         } else {
             println!("There are no notes.");
         }
     } else {
-        let note = notes.get(id.unwrap());
+        let note = notes.get_with_id(id.unwrap());
 
         if let Some(note) = note {
-            let table = Table::new(vec![(id.unwrap(), note)]);
-            print_table(table);
+            let table = NoteTable::new(vec![note]);
+            println!("{}", table);
         } else {
             println!("No note found.");
         }

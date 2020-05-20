@@ -1,5 +1,0 @@
-CREATE TABLE IF NOT EXISTS notes (
-  id INTEGER PRIMARY KEY,
-  created TEXT NOT NULL,
-  content TEXT NOT NULL
-)
