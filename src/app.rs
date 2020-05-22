@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
-use std::{env, fs, process};
 
 use anyhow::Error;
+use dialoguer::{Confirm, Editor};
 use structopt::StructOpt;
 
 use crate::errors::NotesError;
@@ -31,7 +31,7 @@ enum Command {
         file: Option<PathBuf>,
         /// Create a new note in your default editor.
         #[structopt(short, long, conflicts_with = "file")]
-        editor: bool,
+        editor: Option<Option<String>>,
         /// Create a new note from a string.
         #[structopt(name = "content", required_unless_one = &["file", "editor"], conflicts_with_all = &["file", "editor"])]
         content: Option<String>,
@@ -95,9 +95,21 @@ fn handle_args(args: Args, notes: &mut Notes) -> anyhow::Result<()> {
             println!("Note {} edited: {}", id, new_note.content);
         }
         Args::Command(Command::Delete { id }) => {
-            let note = notes.delete(id)?;
+            // Make sure the note exists and get its content to print
+            // the confirmation prompt.
+            let content = if let Some(note) = notes.get(id) {
+                note.content.clone()
+            } else {
+                println!("No note found.");
+                return Ok(());
+            };
 
-            println!("Note `{}: {}` deleted.", id, note.content);
+            let confirm = format!("Are you sure that you want to delete `{}: {}`", id, content);
+
+            if Confirm::new().with_prompt(confirm).interact()? {
+                notes.delete(id)?;
+                println!("Note `{}: {}` deleted.", id, content);
+            }
         }
         Args::Content(content) => {
             let id = notes.push(Note::new(content.join(" ")));
@@ -136,14 +148,14 @@ fn run_get_note(notes: &Notes, all: bool, id: Option<usize>) -> anyhow::Result<(
 fn run_new_note<P: AsRef<Path>>(
     notes: &mut Notes,
     file: Option<P>,
-    editor: bool,
+    editor: Option<Option<String>>,
     content: Option<String>,
 ) -> anyhow::Result<()> {
     let note = {
         if let Some(path) = file {
             new_note_from_file(path)?
-        } else if editor {
-            new_note_from_editor()?
+        } else if let Some(editor) = editor {
+            new_note_from_editor(editor)?
         } else {
             Note::new(content.unwrap())
         }
@@ -172,15 +184,24 @@ fn new_note_from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Note> {
 }
 
 /// Opens the user's defualt editor to create a note.
-fn new_note_from_editor() -> anyhow::Result<Note> {
-    let editor = env::var("EDITOR")?;
-    let mut file_path = env::temp_dir();
-    file_path.push("temp");
-    fs::File::create(&file_path)?;
+fn new_note_from_editor(editor: Option<String>) -> anyhow::Result<Note> {
+    // No edit message because it's annoying from a user viewpoint.
+    let content = if let Some(editor) = editor {
+        Editor::new().executable(editor).edit("")
+    } else {
+        Editor::new().edit("")
+    };
 
-    process::Command::new(editor).arg(&file_path).status()?;
-
-    let contents = fs::read_to_string(&file_path)?;
-
-    Ok(Note::new(contents))
+    if let Ok(Some(content)) = content {
+        Ok(Note::new(content))
+    } else if let Err(io_error) = content {
+        Err(Error::new(NotesError::NewNoteFromEditor(format!(
+            "{}",
+            io_error
+        ))))
+    } else {
+        Err(Error::new(NotesError::NewNoteFromEditor(
+            "File not saved.".to_string(),
+        )))
+    }
 }

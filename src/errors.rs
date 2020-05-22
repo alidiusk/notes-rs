@@ -6,4 +6,6 @@ pub enum NotesError {
     InvalidNoteId(usize),
     #[error("Cannot make new note from file; `{0}` is a directory.")]
     NewNoteFileIsDir(String),
+    #[error("Unable to make note from editor: {0}")]
+    NewNoteFromEditor(String),
 }
