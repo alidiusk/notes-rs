@@ -67,70 +67,69 @@ impl<R: Row> fmt::Display for Table<R> {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::notes::Notes;
-//
-//     #[test]
-//     fn compute_column_widths() {
-//         let notes = Notes::new(vec![
-//             Note::new("12345678".to_string()),
-//             Note::new("123456".to_string()),
-//             Note::new("".to_string()),
-//         ]);
-//
-//         // [3, 19, 8]
-//         let expected: [usize; 3] = ["[1]".len(), "2020-02-28 17:05:29".len(), "12345678".len()];
-//
-//         assert_eq!(
-//             expected,
-//             Table::compute_column_widths(notes.get_all_with_id().unwrap().as_slice())
-//         );
-//     }
-//
-//     #[test]
-//     fn render_header() {
-//         let notes = Notes::new(vec![
-//             Note::new("12345678".to_string()),
-//             Note::new("123456".to_string()),
-//             Note::new("".to_string()),
-//         ]);
-//
-//         let table = Table::new(notes.get_all_with_id().unwrap());
-//
-//         let expected = format!(
-//             "{:id$} {:created$} {:content$}",
-//             style("ID").underlined(),
-//             style("Created").underlined(),
-//             style("Content").underlined(),
-//             id = "[3]".len(),
-//             created = "2020-02-28 17:05:29".len(),
-//             content = "12345678".len(),
-//         );
-//
-//         assert_eq!(expected, table.render_header());
-//     }
-//
-//     #[test]
-//     fn render_row() {
-//         let vec_notes = vec![
-//             Note::new("12345678".to_string()),
-//             Note::new("123456".to_string()),
-//             Note::new("".to_string()),
-//         ];
-//
-//         let notes = Notes::new(vec_notes.clone());
-//
-//         let table = Table::new(notes.get_all_with_id().unwrap());
-//
-//         let expected = format!(
-//             "{:3} {:19} {:8}",
-//             style("[1]").bold(),
-//             style(notes.get(1).unwrap().created_string()).bold(),
-//             "123456"
-//         );
-//
-//         assert_eq!(expected, table.render_row(1, &vec_notes[1]));
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::notes::{Note, Notes};
+
+    #[test]
+    fn compute_column_widths() {
+        let notes = Notes::new(vec![
+            Note::new("12345678".to_string()),
+            Note::new("123456".to_string()),
+            Note::new("".to_string()),
+        ]);
+
+        // [2, 19, 8]
+        let expected = vec!["ID".len(), "2020-02-28 17:05:29".len(), "12345678".len()];
+
+        assert_eq!(
+            expected,
+            Table::compute_column_widths(notes.get_all_with_id().unwrap().as_slice())
+        );
+    }
+
+    #[test]
+    fn render() {
+        let vec_notes = vec![
+            Note::new("12345678".to_string()),
+            Note::new("123456".to_string()),
+            Note::new("".to_string()),
+        ];
+
+        let notes = Notes::new(vec_notes.clone());
+
+        let table = Table::new(notes.get_all_with_id().unwrap());
+
+        // Number of notes and the header
+        let expected_length = notes.len() + 1;
+
+        assert_eq!(
+            expected_length,
+            table.render().as_str().lines().collect::<Vec<&str>>().len()
+        );
+
+        let expected_render = vec_notes
+            .iter()
+            .enumerate()
+            .map(|(i, note)| {
+                format!(
+                    "{:2} {:19} {:8} ",
+                    i.to_string().bold(),
+                    note.created_string().bold(),
+                    note.content
+                )
+            })
+            .collect::<Vec<String>>();
+
+        assert_eq!(
+            expected_render[..],
+            table
+                .render()
+                .as_str()
+                .lines()
+                .map(|row| row.to_string())
+                .collect::<Vec<String>>()[1..]
+        );
+    }
+}
