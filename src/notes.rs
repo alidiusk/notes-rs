@@ -92,7 +92,8 @@ impl Notes {
     pub fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let buf = fs::read_to_string(path)?;
 
-        Ok(bincode::deserialize::<Notes>(buf.as_bytes())?)
+        bincode::deserialize::<Notes>(buf.as_bytes())
+            .map_err(|_| Error::new(NotesError::NoteDeserialization))
     }
 
     /// Serializes the structure to bytes and writes it to the

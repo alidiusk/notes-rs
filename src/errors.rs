@@ -8,4 +8,6 @@ pub enum NotesError {
     NewNoteFileIsDir(String),
     #[error("Unable to make note from editor: {0}")]
     NewNoteFromEditor(String),
+    #[error("Unable to read notes file.")]
+    NoteDeserialization,
 }
