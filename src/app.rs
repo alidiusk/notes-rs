@@ -254,11 +254,13 @@ fn new_note_from_editor(editor: Option<String>) -> anyhow::Result<Note> {
 
     if let Ok(Some(content)) = content {
         Ok(Note::new(content))
-    } else if let Err(io_error) = content {
-        Err(Error::new(NotesError::NewNoteFromEditor(format!(
-            "{}",
-            io_error
-        ))))
+    } else if content.is_err() {
+        // NOTE: errors could be caused by other means.
+        // Be aware of this.
+        Err(Error::new(NotesError::NewNoteFromEditor(
+            "Editor not found.".to_string(),
+        )))
+    // Ok(None)
     } else {
         Err(Error::new(NotesError::NewNoteFromEditor(
             "File not saved.".to_string(),
