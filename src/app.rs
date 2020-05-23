@@ -1,4 +1,7 @@
+use std::fs;
 use std::path::{Path, PathBuf};
+
+use dirs::data_dir;
 
 use anyhow::Error;
 use dialoguer::{Confirm, Editor};
@@ -12,6 +15,9 @@ use crate::util::*;
 pub struct App {
     #[structopt(subcommand)]
     args: Option<Args>,
+    /// Path to the notes file; defaults to the XDG Data Directory.
+    #[structopt(long)]
+    path: Option<PathBuf>,
 }
 
 #[derive(StructOpt, Debug)]
@@ -29,7 +35,8 @@ enum Command {
         /// Create a new note from a file.
         #[structopt(short, long, conflicts_with = "editor")]
         file: Option<PathBuf>,
-        /// Create a new note in your default editor.
+        /// Create a new note in an editor. Defaults to your default editor if
+        /// no arguments are supplied.
         #[structopt(short, long, conflicts_with = "file")]
         editor: Option<Option<String>>,
         /// Create a new note from a string.
@@ -63,9 +70,11 @@ enum Command {
 }
 
 /// Runs the application.
-pub fn run_app(app: App, notes: &mut Notes) -> anyhow::Result<()> {
+pub fn run_app(app: App) -> anyhow::Result<()> {
+    let mut notes = get_notes_from_file(app.path.clone())?;
+
     if let Some(args) = app.args {
-        handle_args(args, notes)?;
+        handle_args(args, &mut notes)?;
     } else if let Some(notes) = notes.get_all_with_id() {
         let table = NoteTable::new(notes);
         println!("{}", table);
@@ -73,7 +82,58 @@ pub fn run_app(app: App, notes: &mut Notes) -> anyhow::Result<()> {
         println!("There are no notes.");
     }
 
+    save_notes_to_file(&notes, app.path)?;
+
     Ok(())
+}
+
+/// Returns the path to the notes directory in XDG Data Directory.
+/// Creates it if it does not exist. Does not create the notes file
+/// inside the directory if it does not exist.
+fn get_xdg_data_dir() -> anyhow::Result<PathBuf> {
+    let dir = data_dir().unwrap().join("Notes");
+
+    if !dir.exists() {
+        fs::create_dir(&dir)?;
+    }
+
+    let path = dir.join("notes");
+
+    Ok(path)
+}
+
+/// Takes optional path; if supplied path is None, defaults to the
+/// XDG Data Directory path.
+fn get_notes_from_file<P: AsRef<Path>>(path: Option<P>) -> anyhow::Result<Notes> {
+    if let Some(path) = path {
+        init_notes_file(&path)?;
+        Notes::from_file(path)
+    } else {
+        let path = get_xdg_data_dir()?;
+        init_notes_file(&path)?;
+        Notes::from_file(path)
+    }
+}
+
+/// Initializes a new notes file if it does not exist.
+fn init_notes_file<P: AsRef<Path>>(path: P) -> anyhow::Result<()> {
+    if !path.as_ref().exists() {
+        let notes = Notes::new(vec![]);
+        notes.to_file(&path)?;
+    }
+
+    Ok(())
+}
+
+/// Saves notes to file; defaults to XDG Data Directory path if path given
+/// is None.
+fn save_notes_to_file<P: AsRef<Path>>(notes: &Notes, path: Option<P>) -> anyhow::Result<()> {
+    if let Some(path) = path {
+        notes.to_file(path)
+    } else {
+        let path = get_xdg_data_dir()?;
+        notes.to_file(path)
+    }
 }
 
 /// Processes user-provided arguments.
