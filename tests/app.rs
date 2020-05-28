@@ -1,8 +1,8 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use assert_cmd::prelude::*;
+use assert_cmd::Command;
 use predicates::prelude::*;
 use tempfile::{tempdir, TempDir};
 
@@ -48,6 +48,9 @@ macro_rules! cmd_with_args {
 
         $cmd
     }};
+    ($cmd:ident) => {
+        cmd_with_args!($cmd, [])
+    };
     ($($arg:expr),*) => {{
         let mut cmd = TestCommand::new()?;
 
@@ -88,11 +91,9 @@ fn get_all_notes_empty() -> anyhow::Result<()> {
 #[test]
 fn one_new_note() -> anyhow::Result<()> {
     let mut cmd = cmd_with_args!("new", "test");
-
     assert_success!(cmd, predicate::str::contains("Note with ID 0 created."));
 
     cmd = cmd_with_args!(cmd, ["get", "--all"]);
-
     assert_success!(cmd, predicate::str::contains("test"));
 
     Ok(())
@@ -100,26 +101,56 @@ fn one_new_note() -> anyhow::Result<()> {
 
 #[test]
 fn two_new_notes() -> anyhow::Result<()> {
-    let mut cmd = cmd_with_args!("new", "test");
-
+    let mut cmd = cmd_with_args!("new", "first");
     assert_success!(cmd, predicate::str::contains("Note with ID 0 created."));
 
-    cmd = cmd_with_args!(cmd, ["new", "second test"]);
-
+    cmd = cmd_with_args!(cmd, ["new", "second"]);
     assert_success!(cmd, predicate::str::contains("Note with ID 1 created."));
 
     cmd = cmd_with_args!(cmd, ["get", "--all"]);
-
     assert_success!(
         cmd,
-        predicate::str::contains("test").and(predicate::str::contains("second test"))
+        predicate::str::contains("first").and(predicate::str::contains("second"))
     );
 
     Ok(())
 }
 
+#[test]
+fn get_specific_note() -> anyhow::Result<()> {
+    let mut cmd = cmd_with_args!("new", "first");
+    assert_success!(cmd, predicate::str::contains("Note with ID 0 created."));
+
+    cmd = cmd_with_args!(cmd, ["new", "second"]);
+    assert_success!(cmd, predicate::str::contains("Note with ID 1 created."));
+
+    cmd = cmd_with_args!(cmd, ["get", "0"]);
+    assert_success!(cmd, predicate::str::contains("first"));
+
+    cmd = cmd_with_args!(cmd, ["get", "1"]);
+    assert_success!(cmd, predicate::str::contains("second"));
+
+    Ok(())
+}
+
+#[test]
+fn edit_note() -> anyhow::Result<()> {
+    let mut cmd = cmd_with_args!("new", "test");
+    assert_success!(cmd, predicate::str::contains("Note with ID 0 created."));
+
+    cmd = cmd_with_args!(cmd);
+    assert_success!(cmd, predicate::str::contains("test"));
+
+    cmd = cmd_with_args!(cmd, ["edit", "0", "other"]);
+    assert_success!(cmd, predicate::str::contains("Note 0 edited: other"));
+
+    cmd = cmd_with_args!(cmd);
+    assert_success!(cmd, predicate::str::contains("other"));
+
+    Ok(())
+}
+
 // Tests to add:
-// - Adding a note.
 // - Deleting a note.
 // - Getting a note.
 // - Editing a note.
