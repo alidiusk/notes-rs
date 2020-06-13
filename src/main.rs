@@ -4,6 +4,7 @@ mod app;
 mod errors;
 mod notes;
 mod table;
+mod tags;
 mod util;
 
 use structopt::StructOpt;

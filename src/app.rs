@@ -9,23 +9,16 @@ use structopt::StructOpt;
 
 use crate::errors::NotesError;
 use crate::notes::{Note, NoteTable, Notes};
+use crate::tags::*;
 use crate::util::*;
 
 #[derive(StructOpt, Debug)]
 pub struct App {
     #[structopt(subcommand)]
-    args: Option<Args>,
+    cmd: Option<Command>,
     /// Path to the notes file; defaults to the XDG Data Directory.
     #[structopt(long)]
     path: Option<PathBuf>,
-}
-
-#[derive(StructOpt, Debug)]
-enum Args {
-    #[structopt(flatten)]
-    Command(Command),
-    #[structopt(external_subcommand)]
-    Content(Vec<String>),
 }
 
 #[derive(StructOpt, Debug)]
@@ -42,15 +35,21 @@ enum Command {
         /// Create a new note from a string.
         #[structopt(name = "content", required_unless_one = &["file", "editor"], conflicts_with_all = &["file", "editor"])]
         content: Option<String>,
+        /// Specify the tags of the note.
+        #[structopt(long)]
+        tags: Option<Vec<String>>,
     },
     /// Retrieve an existing note.
     Get {
         /// Return all notes.
-        #[structopt(short, long)]
+        #[structopt(short, long, conflicts_with_all = &["id", "tag"])]
         all: bool,
         /// Return the note with the matching id.
-        #[structopt(name = "note_id", required_unless = "all")]
+        #[structopt(name = "note_id", conflicts_with_all = &["all", "tag"], required_unless_one = &["all", "tag"])]
         id: Option<usize>,
+        /// Return all notes with a specific tag.
+        #[structopt(long, conflicts_with_all = &["all", "id"])]
+        tag: Option<String>,
     },
     /// Edit an existing note.
     Edit {
@@ -73,8 +72,8 @@ enum Command {
 pub fn run_app(app: App) -> anyhow::Result<()> {
     let mut notes = get_notes_from_file(app.path.clone())?;
 
-    if let Some(args) = app.args {
-        handle_args(args, &mut notes)?;
+    if let Some(cmd) = app.cmd {
+        handle_command(cmd, &mut notes)?;
     } else if let Some(notes) = notes.get_all_with_id() {
         let table = NoteTable::new(notes);
         println!("{}", table);
@@ -137,24 +136,25 @@ fn save_notes_to_file<P: AsRef<Path>>(notes: &Notes, path: Option<P>) -> anyhow:
 }
 
 /// Processes user-provided arguments.
-fn handle_args(args: Args, notes: &mut Notes) -> anyhow::Result<()> {
-    match args {
-        Args::Command(Command::New {
+fn handle_command(cmd: Command, notes: &mut Notes) -> anyhow::Result<()> {
+    match cmd {
+        Command::New {
             file,
             editor,
             content,
-        }) => {
-            run_new_note(notes, file, editor, content)?;
+            tags,
+        } => {
+            run_new_note(notes, file, editor, content, tags)?;
         }
-        Args::Command(Command::Get { all, id }) => {
-            run_get_note(notes, all, id)?;
+        Command::Get { all, id, tag } => {
+            run_get_note(notes, all, id, tag)?;
         }
-        Args::Command(Command::Edit { id, content }) => {
+        Command::Edit { id, content } => {
             let new_note = notes.edit(id, content)?;
 
             println!("Note {} edited: {}", id, new_note.content);
         }
-        Args::Command(Command::Delete { id }) => {
+        Command::Delete { id } => {
             // Make sure the note exists and get its content to print
             // the confirmation prompt.
             let content = if let Some(note) = notes.get(id) {
@@ -171,20 +171,27 @@ fn handle_args(args: Args, notes: &mut Notes) -> anyhow::Result<()> {
                 println!("Note `{}: {}` deleted.", id, content);
             }
         }
-        Args::Content(content) => {
-            let id = notes.push(Note::new(content.join(" ")));
-
-            println!("Note with ID {} created.", id);
-        }
     }
 
     Ok(())
 }
 
 /// Processes a user query for note(s) and prints it to stdout.
-fn run_get_note(notes: &Notes, all: bool, id: Option<usize>) -> anyhow::Result<()> {
+fn run_get_note(
+    notes: &Notes,
+    all: bool,
+    id: Option<usize>,
+    tag: Option<String>,
+) -> anyhow::Result<()> {
     if all {
         if let Some(notes) = notes.get_all_with_id() {
+            let table = NoteTable::new(notes);
+            println!("{}", table);
+        } else {
+            println!("There are no notes.");
+        }
+    } else if let Some(tag) = tag {
+        if let Some(notes) = notes.get_all_with_tag(tag) {
             let table = NoteTable::new(notes);
             println!("{}", table);
         } else {
@@ -210,8 +217,9 @@ fn run_new_note<P: AsRef<Path>>(
     file: Option<P>,
     editor: Option<Option<String>>,
     content: Option<String>,
+    tags: Option<Vec<String>>,
 ) -> anyhow::Result<()> {
-    let note = {
+    let mut note = {
         if let Some(path) = file {
             new_note_from_file(path)?
         } else if let Some(editor) = editor {
@@ -220,6 +228,10 @@ fn run_new_note<P: AsRef<Path>>(
             Note::new(content.unwrap())
         }
     };
+
+    if let Some(tags) = tags {
+        note.add_tags(tags);
+    }
 
     let id = notes.push(note);
 
@@ -239,7 +251,7 @@ fn new_note_from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Note> {
         let created = get_time_created(&path)?;
         let content = get_file_contents(&path)?;
 
-        Ok(Note::new_with_time(content, created))
+        Ok(Note::with_time(content, created))
     }
 }
 

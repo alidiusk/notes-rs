@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::NotesError;
 use crate::table::{Row, Table};
+use crate::tags::*;
 
 pub type NoteTable = Table<NoteWithId>;
 
@@ -15,6 +16,7 @@ pub type NoteTable = Table<NoteWithId>;
 pub struct NoteWithId {
     pub id: usize,
     pub created: DateTime<Local>,
+    pub tags: Option<Tags>,
     pub content: String,
 }
 
@@ -25,6 +27,7 @@ impl NoteWithId {
             id,
             created: note.created,
             content: note.content,
+            tags: note.tags,
         }
     }
 
@@ -39,6 +42,9 @@ impl Row for NoteWithId {
         vec![
             self.id.to_string().bold(),
             self.created_string().bold(),
+            self.tags
+                .clone()
+                .map_or_else(|| "".into(), |t| t.to_string().as_str().into()),
             self.content.clone().as_str().into(),
         ]
     }
@@ -47,6 +53,7 @@ impl Row for NoteWithId {
         vec![
             "ID".underline(),
             "Created".underline(),
+            "Tags".underline(),
             "Content".underline(),
         ]
     }
@@ -55,6 +62,7 @@ impl Row for NoteWithId {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Note {
     pub created: DateTime<Local>,
+    pub tags: Option<Tags>,
     pub content: String,
 }
 
@@ -63,18 +71,59 @@ impl Note {
     pub fn new(content: String) -> Note {
         Note {
             created: Local::now(),
+            tags: None,
             content,
         }
     }
 
     /// Creates a new note with a given creation time.
-    pub fn new_with_time(content: String, created: DateTime<Local>) -> Self {
-        Note { created, content }
+    pub fn with_time(content: String, created: DateTime<Local>) -> Self {
+        Note {
+            created,
+            tags: None,
+            content,
+        }
+    }
+
+    /// Creates a new note with given tags and sets the creation time to this moment.
+    pub fn with_tags(content: String, tags: Vec<String>) -> Note {
+        Note {
+            created: Local::now(),
+            tags: Some(tags.into()),
+            content,
+        }
+    }
+
+    /// Creates a new note with a given creation time and tags.
+    pub fn with_tags_and_time(
+        content: String,
+        tags: Vec<String>,
+        created: DateTime<Local>,
+    ) -> Self {
+        Note {
+            created,
+            tags: Some(tags.into()),
+            content,
+        }
     }
 
     /// Returns a formatted string of the creation time.
     pub fn created_string(&self) -> String {
         self.created.format("%Y-%m-%d %H:%M:%S").to_string()
+    }
+
+    /// Add a tag list to the note.
+    pub fn add_tags(&mut self, tags: Vec<String>) {
+        self.tags = Some(tags.into());
+    }
+
+    /// Check if this note has a given tag.
+    pub fn has_tag(&self, tag: &Tag) -> bool {
+        if let Some(tags) = &self.tags {
+            tags.has_tag(tag)
+        } else {
+            false
+        }
     }
 }
 
@@ -124,17 +173,17 @@ impl Notes {
     /// Returns a Vec of note references and their corresponding
     /// index.
     pub fn get_all_with_id(&self) -> Option<Vec<NoteWithId>> {
-        if self.len() > 0 {
-            let mut notes = vec![];
-
-            for (i, n) in self.0.iter().enumerate() {
-                notes.push(NoteWithId::from_note(i, n.clone()));
-            }
-
-            Some(notes)
-        } else {
-            None
+        if self.0.is_empty() {
+            return None;
         }
+
+        let mut notes = vec![];
+
+        for (i, note) in self.0.iter().enumerate() {
+            notes.push(NoteWithId::from_note(i, note.clone()));
+        }
+
+        Some(notes)
     }
 
     /// Gets the note at the given index if it is within bounds; otherwise,
@@ -149,6 +198,27 @@ impl Notes {
         self.0
             .get(index)
             .map(|n| NoteWithId::from_note(index, n.clone()))
+    }
+
+    /// Gets all notes that have a given tag.
+    pub fn get_all_with_tag(&self, tag: String) -> Option<Vec<NoteWithId>> {
+        if self.0.is_empty() {
+            return None;
+        }
+
+        let mut notes = vec![];
+        let tag = Tag::from(tag);
+        for (i, note) in self.0.iter().enumerate() {
+            if note.has_tag(&tag) {
+                notes.push(NoteWithId::from_note(i, note.clone()));
+            }
+        }
+
+        if notes.is_empty() {
+            return None;
+        }
+
+        Some(notes)
     }
 
     /// Pushes a new note onto the Vec and returns the note ID.
