@@ -257,7 +257,7 @@ impl Notes {
         &mut self,
         index: usize,
         content: Option<String>,
-        tags: Option<Vec<String>>,
+        tags: Option<Tags>,
     ) -> anyhow::Result<&Note> {
         if let Some(note) = self.0.get_mut(index) {
             if let Some(content) = content {

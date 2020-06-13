@@ -171,7 +171,7 @@ fn handle_command(cmd: Command, notes: &mut Notes) -> anyhow::Result<()> {
             run_get_note(notes, all, id, tags)?;
         }
         Command::Edit { id, content, tags } => {
-            let new_note = notes.edit(id, content, tags)?;
+            let new_note = notes.edit(id, content, tags.map(|t| t.into()))?;
 
             println!("Note {} edited: {}", id, new_note.content);
         }
