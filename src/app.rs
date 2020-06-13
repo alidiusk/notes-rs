@@ -42,14 +42,14 @@ enum Command {
     /// Retrieve an existing note.
     Get {
         /// Return all notes.
-        #[structopt(short, long, conflicts_with_all = &["id", "tag"])]
+        #[structopt(short, long, conflicts_with_all = &["id", "tags"])]
         all: bool,
         /// Return the note with the matching id.
-        #[structopt(name = "note_id", conflicts_with_all = &["all", "tag"], required_unless_one = &["all", "tag"])]
+        #[structopt(name = "note_id", conflicts_with_all = &["all", "tags"], required_unless_one = &["all", "tags"])]
         id: Option<usize>,
         /// Return all notes with a specific tag.
         #[structopt(long, conflicts_with_all = &["all", "id"])]
-        tag: Option<String>,
+        tags: Option<Vec<String>>,
     },
     /// Edit an existing note.
     Edit {
@@ -57,8 +57,10 @@ enum Command {
         #[structopt(name = "note_id")]
         id: usize,
         /// Content to replace the given note with
-        #[structopt(name = "content")]
-        content: String,
+        #[structopt(name = "content", required_unless = "tags")]
+        content: Option<String>,
+        #[structopt(long)]
+        tags: Option<Vec<String>>,
     },
     /// Delete an existing note.
     Delete {
@@ -68,17 +70,36 @@ enum Command {
     },
 }
 
+macro_rules! print_notes {
+    ($notes:expr, $err:expr) => {{
+        if let Some(notes) = $notes {
+            let table = NoteTable::new(notes);
+            println!("{}", table);
+        } else {
+            println!("{}", $err);
+        }
+    }};
+}
+
+macro_rules! print_note {
+    ($notes:expr, $err:expr) => {{
+        if let Some(notes) = $notes {
+            let table = NoteTable::new(vec![notes]);
+            println!("{}", table);
+        } else {
+            println!("{}", $err);
+        }
+    }};
+}
+
 /// Runs the application.
 pub fn run_app(app: App) -> anyhow::Result<()> {
     let mut notes = get_notes_from_file(app.path.clone())?;
 
     if let Some(cmd) = app.cmd {
         handle_command(cmd, &mut notes)?;
-    } else if let Some(notes) = notes.get_all_with_id() {
-        let table = NoteTable::new(notes);
-        println!("{}", table);
     } else {
-        println!("There are no notes.");
+        print_notes!(notes.get_all_with_id(), "There are no notes.");
     }
 
     save_notes_to_file(&notes, app.path)?;
@@ -146,11 +167,11 @@ fn handle_command(cmd: Command, notes: &mut Notes) -> anyhow::Result<()> {
         } => {
             run_new_note(notes, file, editor, content, tags)?;
         }
-        Command::Get { all, id, tag } => {
-            run_get_note(notes, all, id, tag)?;
+        Command::Get { all, id, tags } => {
+            run_get_note(notes, all, id, tags)?;
         }
-        Command::Edit { id, content } => {
-            let new_note = notes.edit(id, content)?;
+        Command::Edit { id, content, tags } => {
+            let new_note = notes.edit(id, content, tags)?;
 
             println!("Note {} edited: {}", id, new_note.content);
         }
@@ -181,31 +202,17 @@ fn run_get_note(
     notes: &Notes,
     all: bool,
     id: Option<usize>,
-    tag: Option<String>,
+    tags: Option<Vec<String>>,
 ) -> anyhow::Result<()> {
     if all {
-        if let Some(notes) = notes.get_all_with_id() {
-            let table = NoteTable::new(notes);
-            println!("{}", table);
-        } else {
-            println!("There are no notes.");
-        }
-    } else if let Some(tag) = tag {
-        if let Some(notes) = notes.get_all_with_tag(tag) {
-            let table = NoteTable::new(notes);
-            println!("{}", table);
-        } else {
-            println!("There are no notes.");
-        }
+        print_notes!(notes.get_all_with_id(), "There are no notes.");
+    } else if let Some(tags) = tags {
+        print_notes!(
+            notes.get_all_with_tags(Tags::from(tags)),
+            "There are no notes."
+        );
     } else {
-        let note = notes.get_with_id(id.unwrap());
-
-        if let Some(note) = note {
-            let table = NoteTable::new(vec![note]);
-            println!("{}", table);
-        } else {
-            println!("No note found.");
-        }
+        print_note!(notes.get_with_id(id.unwrap()), "No note found.");
     }
 
     Ok(())

@@ -18,6 +18,16 @@ impl Tags {
     pub fn has_tag(&self, tag: &Tag) -> bool {
         self.0.contains(tag)
     }
+
+    pub fn contains(&self, other: &Tags) -> bool {
+        for tag in other.tags() {
+            if !self.0.contains(tag) {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 impl fmt::Display for Tags {

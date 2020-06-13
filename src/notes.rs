@@ -125,6 +125,15 @@ impl Note {
             false
         }
     }
+
+    /// Check if this note has all of the  given tags.
+    pub fn has_tags(&self, other: &Tags) -> bool {
+        if let Some(tags) = &self.tags {
+            tags.contains(other)
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -201,15 +210,19 @@ impl Notes {
     }
 
     /// Gets all notes that have a given tag.
-    pub fn get_all_with_tag(&self, tag: String) -> Option<Vec<NoteWithId>> {
+    pub fn get_all_with_tag(&self, tag: Tag) -> Option<Vec<NoteWithId>> {
+        self.get_all_with_tags(Tags(vec![tag]))
+    }
+
+    /// Gets all notes that possess all of the listed tags.
+    pub fn get_all_with_tags(&self, tags: Tags) -> Option<Vec<NoteWithId>> {
         if self.0.is_empty() {
             return None;
         }
 
         let mut notes = vec![];
-        let tag = Tag::from(tag);
         for (i, note) in self.0.iter().enumerate() {
-            if note.has_tag(&tag) {
+            if note.has_tags(&tags) {
                 notes.push(NoteWithId::from_note(i, note.clone()));
             }
         }
@@ -240,9 +253,20 @@ impl Notes {
 
     /// Edits a note's content without changing the creation time. If the index is
     /// invalid, this returns an error.
-    pub fn edit(&mut self, index: usize, content: String) -> anyhow::Result<&Note> {
+    pub fn edit(
+        &mut self,
+        index: usize,
+        content: Option<String>,
+        tags: Option<Vec<String>>,
+    ) -> anyhow::Result<&Note> {
         if let Some(note) = self.0.get_mut(index) {
-            note.content = content;
+            if let Some(content) = content {
+                note.content = content;
+            }
+
+            if let Some(tags) = tags {
+                note.tags = Some(Tags::from(tags));
+            }
 
             // This is safe, as we just confirmed this index exists.
             Ok(self.get(index).unwrap())
