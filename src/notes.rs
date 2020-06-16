@@ -265,7 +265,7 @@ impl Notes {
             }
 
             if let Some(tags) = tags {
-                note.tags = Some(Tags::from(tags));
+                note.tags = Some(tags);
             }
 
             // This is safe, as we just confirmed this index exists.
