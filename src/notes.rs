@@ -251,7 +251,7 @@ impl Notes {
         }
     }
 
-    /// Edits a note's content without changing the creation time. If the index is
+    /// Edits a note's content or tags without changing the creation time. If the index is
     /// invalid, this returns an error.
     pub fn edit(
         &mut self,

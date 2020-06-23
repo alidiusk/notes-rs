@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 mod app;
+mod crypto;
 mod errors;
 mod notes;
 mod table;
