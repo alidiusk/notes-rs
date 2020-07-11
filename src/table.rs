@@ -49,7 +49,11 @@ impl<R: Row> Table<R> {
             render += "\n";
 
             row.row().iter().enumerate().for_each(|(i, s)| {
-                render += &format!("{:offset$} ", s, offset = self.column_widths[i]);
+                if i != row.row().len() - 1 {
+                    render += &format!("{:offset$} ", s, offset = self.column_widths[i]);
+                } else {
+                    render += &format!("{} ", s);
+                }
             });
         });
 
