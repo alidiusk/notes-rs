@@ -42,13 +42,19 @@ impl<R: Row> Table<R> {
         let mut render = String::new();
 
         for (i, s) in R::header().iter().enumerate() {
-            render += &format!("{:offset$} ", s, offset = self.column_widths[i]);
+            // Last column should not have hanging whitespace
+            if i != R::header().len() - 1 {
+                render += &format!("{:offset$} ", s, offset = self.column_widths[i]);
+            } else {
+                render += &format!("{} ", s);
+            }
         }
 
         self.rows.iter().for_each(|row| {
             render += "\n";
 
             row.row().iter().enumerate().for_each(|(i, s)| {
+                // Last column should not have hanging whitespace
                 if i != row.row().len() - 1 {
                     render += &format!("{:offset$} ", s, offset = self.column_widths[i]);
                 } else {
