@@ -2,11 +2,8 @@ language: rust
 
 env:
     global:
+        - HOST=x86_64-unknown-linux-gnu
         - PROJECT_NAME=notes
-
-rust:
-    - stable
-    - nightly
 
 cache:
     directories:
@@ -26,8 +23,8 @@ matrix:
           rust: stable
           env: TARGET=x86_64-apple-darwin
 
-before_deploy:
-    - bash ci/before_deploy.sh
+install:
+    - if [[ $TRAVIS_OS_NAME = linux && $HOST != $TARGET ]]; then rustup target add $TARGET; fi
 
 before_deploy:
     - git config --local user.name "Liam Woodward"
