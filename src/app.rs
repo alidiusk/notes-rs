@@ -182,19 +182,14 @@ fn run_new_note<'a>(notes: &mut Notes, args: &ArgMatches<'a>) -> anyhow::Result<
 }
 
 /// Processes a user query for note(s) and prints it to stdout.
-fn run_get_note<'a>(
-    notes: &Notes,
-    args: &ArgMatches<'a>,
-    // all: bool,
-    // id: Option<usize>,
-    // tags: Option<Vec<String>>,
-    // desc: bool,
-) -> anyhow::Result<()> {
+fn run_get_note<'a>(notes: &Notes, args: &ArgMatches<'a>) -> anyhow::Result<()> {
     let desc = args.is_present("desc");
     let mut all = args.is_present("all");
     let tags = args.values_of("tags");
     let id = args.value_of("id");
 
+    // If `id` is not present, okay for it to be none, as we should never use it. It goes down
+    // the `all` branch.
     if id.is_none() {
         all = true;
     }
