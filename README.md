@@ -2,7 +2,7 @@ Notes
 ------------
 Notes is a simple command line notes application for storing quick, short notes.
 
-Licensed under GNU General Public License V3.
+Licensed under GPLv3.
 
 ### Example Usage
 
