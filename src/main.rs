@@ -2,18 +2,16 @@
 
 mod app;
 mod crypto;
+mod display;
 mod errors;
 mod notes;
-mod table;
 mod tags;
 mod util;
 
-use structopt::StructOpt;
-
-use crate::app::{run_app, App};
+use crate::app::{app, run_app};
 
 fn main() -> anyhow::Result<()> {
-    let app = App::from_args();
+    let app = app();
 
     run_app(app)?;
 

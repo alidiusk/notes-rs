@@ -8,14 +8,15 @@ version = "0.2.2"
 anyhow = "1.0.31"
 bincode = "1.2.1"
 chrono = { version = "0.4.10", features = ["serde"] }
-colored = "1.9.3"
 dialoguer = "0.6.2"
 dirs = "2.0.2"
 rand = "0.4.6"
 rust-crypto = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }
-structopt = "0.3"
 thiserror = "1.0.18"
+prettytable-rs = "0.8.0"
+heck = "0.3.1"
+clap = "2.33.1"
 
 [dev-dependencies]
 assert_cmd = "1.0.1"

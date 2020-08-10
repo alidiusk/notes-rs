@@ -60,6 +60,18 @@ impl From<Vec<String>> for Tags {
     }
 }
 
+impl From<Vec<&str>> for Tags {
+    fn from(list: Vec<&str>) -> Tags {
+        let mut tags = Tags(vec![]);
+
+        for string in list {
+            tags.push(string.to_string().into());
+        }
+
+        tags
+    }
+}
+
 /// A tag that describes a note.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Tag {
