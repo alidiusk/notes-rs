@@ -1,5 +1,5 @@
 target/
-tags
+tags*
 backup
 test
 planning.txt
