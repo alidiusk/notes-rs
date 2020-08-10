@@ -17,8 +17,6 @@ bincode = "1.2.1"
 chrono = { version = "0.4.10", features = ["serde"] }
 dialoguer = "0.6.2"
 dirs = "2.0.2"
-rand = "0.4.6"
-rust-crypto = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0.18"
 prettytable-rs = "0.8.0"
