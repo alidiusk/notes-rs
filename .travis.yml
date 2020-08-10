@@ -16,7 +16,7 @@ DEPLOY_TO_GITHUB: &DEPLOY_TO_GITHUB
     before_deploy:
         - git config --local user.name "Liam Woodward"
         - git config --local user.email "liamowoodward@gmail.com"
-        - name = "notes-$TRAVIS_TAG-$TARGET"
+        - name="notes-$TRAVIS_TAG-$TARGET"
         - mkdir $name
         - cp target/$TARGET/release/notes $name/
         - cp README.md LICENSE $name/
