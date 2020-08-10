@@ -16,7 +16,7 @@ use crate::util::*;
 pub fn app() -> App<'static, 'static> {
     clap_app!(notes =>
         (version: "1.1")
-        (author: "Liam Woodward")
+        (author: "Liam Woodward <liamowoodward@gmail.com>")
         (about: "Application for storing short notes.")
         (@arg path: --path [notes] "path to the notes file.")
         (@subcommand new =>
@@ -24,9 +24,10 @@ pub fn app() -> App<'static, 'static> {
          (@group new =>
           (@arg content: "content of the note")
           (@arg file: -f --file [file] "file to create a new note from.")
-          (@arg editor: -e --editor [editor] "create a new note in an editor")
+          (@arg editor: -e --editor [editor] #{0, 1} "create a new note in an editor")
          )
          (@arg tags: --tags +takes_value +multiple "tags to attach to the note.")
+         (@arg desc: --desc [desc] "tags to attach to the note.")
         )
         (@subcommand get =>
          (about: "gets one or more notes.")
@@ -158,21 +159,25 @@ fn save_notes_to_file<P: AsRef<Path>>(notes: &Notes, path: Option<P>) -> anyhow:
 
 /// Creates a new note with valid user-supplied parameters.
 fn run_new_note<'a>(notes: &mut Notes, args: &ArgMatches<'a>) -> anyhow::Result<()> {
-    let mut note = {
+    let note = {
         if let Some(path) = args.value_of("file") {
             new_note_from_file(path)?
         } else if args.is_present("editor") {
             new_note_from_editor(args.value_of("editor"))?
         } else {
-            NoteBuilder::new()
-                .with_content(&args.value_of("content").unwrap())
-                .build()
+            let mut builder = NoteBuilder::new().with_content(&args.value_of("content").unwrap());
+
+            if let Some(desc) = args.value_of("desc") {
+                builder = builder.with_desc(desc);
+            }
+
+            if let Some(tags) = args.values_of("tags") {
+                builder = builder.with_tags(Tags::from(tags.collect::<Vec<&str>>()));
+            }
+
+            builder.build()
         }
     };
-
-    if let Some(tags) = args.values_of("tags") {
-        note.add_tags(Tags::from(tags.collect::<Vec<&str>>()));
-    }
 
     let id = notes.push(note);
 
@@ -235,8 +240,9 @@ fn run_edit_note<'a>(notes: &mut Notes, args: &ArgMatches<'a>) -> anyhow::Result
     let tags = args
         .values_of("tags")
         .map(|t| Tags::from(t.collect::<Vec<&str>>()));
+    let desc = args.value_of("desc").map(|s| s.to_string());
 
-    let new_note = notes.edit(id, content, tags)?;
+    let new_note = notes.edit(id, content, tags, desc)?;
 
     println!("Note {} edited: {}", id, new_note.content);
 

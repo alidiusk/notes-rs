@@ -129,6 +129,7 @@ impl Notes {
         index: usize,
         content: Option<String>,
         tags: Option<Tags>,
+        desc: Option<String>,
     ) -> anyhow::Result<&Note> {
         if let Some(note) = self.0.get_mut(index) {
             if let Some(content) = content {
@@ -137,6 +138,10 @@ impl Notes {
 
             if let Some(tags) = tags {
                 note.tags = tags;
+            }
+
+            if let Some(desc) = desc {
+                note.desc = desc;
             }
 
             // This is safe, as we just confirmed this index exists.
