@@ -18,7 +18,7 @@ DEPLOY_TO_GITHUB: &DEPLOY_TO_GITHUB
         - git config --local user.email "liamowoodward@gmail.com"
         - name="notes-$TRAVIS_TAG-$TARGET"
         - mkdir $name
-        - cp target/$TARGET/release/notes $name/
+        - cp target/$TARGET/release/notes-rs $name/notes
         - cp README.md LICENSE $name/
         - tar czvf $name.tar.gz $name
     deploy:
@@ -27,6 +27,7 @@ DEPLOY_TO_GITHUB: &DEPLOY_TO_GITHUB
             secure: lgqltvzEAG3aBLJlNmgW5zGi2oaaVg1yeY68CUuIMLrL8WwdqfGjx+/JXsbhir2vwzcue3cKTCqD3Vfel4RN0IbgDj6Hy6pUKGK+hU0RpxFPgC73TBJo60uck4Ih5xdgQjP0K+3vfBwDePgNV5qSsc7qdA6wN4+9XK6mc3wEfDy2Y/cbliQf9TmE8/DaOBkyMsCdCNqktZUc0rl7xRDeZITGshH1JjX2OSC73NIGblAOoYkzwBXv81Twomdj/EwoxDu6scXb4+LpATPOEKtZvT0D0YhYyCdzcGAaZHra1/saAvgzAXg+KzkfIto3EZQphHPH1ipzx7i4ciPDmgl/0Tll0P6Ga3aJAGHPCBsfmV8BSCZmhB8uPFGSJeYiin7pCMFC/skNGTi34pzHLY52w8CwE2nxYhKcnBhlt9B0cGsak/D3myuHWVW5DlCWA6gsQR+pS/IWvxzvHr9fhlfRSAI3DWER7f0+JX5sFMjUZ0tNb5nlIgqBuMS5j2IUKuJrSKj7T1PaIkzXhtcEoHThzPXgTajqsF9GTqFtO3cGJ0XdWsbefpQHH4eK6Zrndi7Yr82qNJ7XAViF2b4y9fkoGxUMvlepJg4KypTumjYsTXY78KOdenlTYmu3pkxjMt/DH79zOI5EwqOP2BWWgV8XyPdpMflDvqVohN3rFfG02QA=
         file: notes-$TRAVIS_TAG-$TARGET.tar.gz
         cleanup: false
+        draft: true
         on:
             branch: master
             tags: true
