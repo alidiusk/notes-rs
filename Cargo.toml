@@ -1,6 +1,6 @@
 [package]
 name = "notes-rs"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Liam Woodward <liamowoodward@gmail.com>"]
 repository = "https://github.com/alidiusk/notes-rs"
 keywords = ["notes", "cli"]
