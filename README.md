@@ -4,11 +4,20 @@ Notes is a simple command line notes application for storing quick, short notes.
 
 Licensed under GPLv3.
 
+### Installation
+#### From Binaries
+There are binaries for Linux and macOS on the [Releases page](https://github.com/alidiusk/notes-rs/releases).
+
+#### From Source
+`Notes` can be built from source using the latest rust compiler on `stable`, `beta`, or `nightly`. Clone the repository and run
+```
+$ cargo build --release
+```
+
 ### Example Usage
 
 ```
-# prints all notes (without descriptions)
-# there are no notes yet.
+# prints all notes (without descriptions). there are no notes yet.
 $ notes
 
 # creates a new note with the given content, no tags, no description.
