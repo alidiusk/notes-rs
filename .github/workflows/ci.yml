@@ -75,21 +75,10 @@ jobs:
       - name: Build notes
         run: ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
 
-      - name: Show build.rs stderr
-        shell: bash
-        run: |
-          set +x
-          stderr="$(find "${{ env.TARGET_DIR }}/debug" -name stderr -print0 | xargs -0 ls -t | head -n1)"
-          if [ is $stderr ]; then
-            echo "==== $stderr ===="
-            cat "$stderr"
-            echo "===="
-          fi
-          set -x
-
       # Tests disabled for now as testing framework presently fails.
       # - name: Run tests
       #   run: ${{ env.CARGO }} test --verbose --all ${{ env.TARGET_FLAGS }}
+
   rustfmt:
     name: rustfmt
     runs-on: ubuntu-18.04
