@@ -1,5 +1,7 @@
 Notes
 ------------
+![ci](https://github.com/alidiusk/notes-rs/workflows/ci/badge.svg)
+
 Notes is a simple command line notes application for storing quick, short notes.
 
 Licensed under GPLv3.
