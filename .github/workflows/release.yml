@@ -100,7 +100,7 @@ jobs:
       - name: Set release upload URL and release version
         shell: bash
         run: |
-          release_upload_url="$(cat artifacts/release_upload_url)"
+          release_upload_url="$(cat artifacts/release-upload-url)"
           echo "::set-env name=RELEASE_UPLOAD_URL::$release_upload_url"
           echo "release upload url: $RELEASE_UPLOAD_URL"
           release_version="$(cat artifacts/release-version)"
