@@ -9,7 +9,6 @@ description = """
 Notes is a simple command line notes application for storing quick, short notes.
 """
 readme = "README.md"
-license-file = "LICENSE"
 license = "GPLv3"
 edition = "2018"
 
