@@ -1,6 +1,7 @@
 Notes
 ------------
-![ci](https://github.com/alidiusk/notes-rs/workflows/ci/badge.svg)
+[![ci](https://github.com/alidiusk/notes-rs/workflows/ci/badge.svg)](https://github.com/alidiusk/notes-rs/actions)
+[![crates.io](https://img.shields.io/crates/v/notes-rs.svg)](https://crates.io/crates/notes-rs)
 
 Notes is a simple command line notes application for storing quick, short notes.
 
