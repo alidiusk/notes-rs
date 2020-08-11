@@ -1,14 +1,16 @@
 [package]
 name = "notes-rs"
-version = "1.1.0"
+version = "0.2.1"
 authors = ["Liam Woodward <liamowoodward@gmail.com>"]
+repository = "https://github.com/alidiusk/notes-rs"
+keywords = ["notes", "cli"]
+categories = ["command-line-utilities"]
 description = """
 Notes is a simple command line notes application for storing quick, short notes.
 """
 readme = "README.md"
-keywords = ["notes", "cli"]
-categories = ["command-line-utilities"]
-license = "GNU General Public License V3"
+license-file = "LICENSE"
+license = "GPLv3"
 edition = "2018"
 
 [dependencies]
