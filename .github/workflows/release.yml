@@ -15,7 +15,7 @@ jobs:
         run: mkdir artifacts
 
       - name: Get the release version from the git tag
-        if: env.VERSION = ''
+        if: env.VERSION == ''
         run: |
           echo "::set-env name=VERSION::${GITHUB_REF#refs/tags/}"
           echo "version is ${{ env.VERSION }}"
