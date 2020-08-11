@@ -1,6 +1,5 @@
 Notes
 ------------
-[![Build Status](https://travis-ci.org/alidiusk/notes-rs.svg?branch=master)](https://travis-ci.org/alidiusk/notes-rs)
 Notes is a simple command line notes application for storing quick, short notes.
 
 Licensed under GPLv3.
