@@ -12,6 +12,10 @@ readme = "README.md"
 license = "GPL-3.0"
 edition = "2018"
 
+[[bin]]
+name = "notes"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1.0.31"
 bincode = "1.2.1"

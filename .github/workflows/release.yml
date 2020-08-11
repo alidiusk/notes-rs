@@ -111,7 +111,7 @@ jobs:
         run: ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
 
       - name: Strip release binary
-        run: strip "target/${{ matrix.target }}/release/notes-rs"
+        run: strip "target/${{ matrix.target }}/release/notes"
 
       - name: Build archive
         shell: bash
@@ -120,7 +120,7 @@ jobs:
           mkdir -p "$staging"
 
           cp {README.md,LICENSE} "$staging/"
-          cp "${{ env.TARGET_DIR }}/release/notes-rs" "$staging/notes"
+          cp "${{ env.TARGET_DIR }}/release/notes" "$staging/"
           tar czf "$staging.tar.gz" "$staging"
           echo "::set-env name=ASSET::$staging.tar.gz"
 
