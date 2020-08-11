@@ -15,7 +15,7 @@ use crate::util::*;
 
 pub fn app() -> App<'static, 'static> {
     clap_app!(notes =>
-        (version: "1.1")
+        (version: "v0.2.1")
         (author: "Liam Woodward <liamowoodward@gmail.com>")
         (about: "Application for storing short notes.")
         (@arg path: --path [notes] "path to the notes file.")

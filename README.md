@@ -11,15 +11,25 @@ Licensed under GPLv3.
 #### From Binaries
 There are binaries for Linux and macOS on the [Releases page](https://github.com/alidiusk/notes-rs/releases).
 
-#### From Source
-`Notes` can be built from source using the latest rust compiler on `stable`, `beta`, or `nightly`. Clone the repository and run
+#### From source
+`Notes` can be built from source and installed with `cargo`.
+```bash
+cargo install notes-rs
 ```
+
+### Building
+`Notes` can be built from source on the `stable`, `beta`, and `nightly` compilers. You must have a rust compiler and `cargo` installed.
+```bash
+$ git clone https://github.com/alidiusk/notes-rs
+$ cd notes-rs
 $ cargo build --release
+$ ./target/release/notes --version
+0.2.1
 ```
 
 ### Example Usage
 
-```
+```bash
 # prints all notes (without descriptions). there are no notes yet.
 $ notes
 
