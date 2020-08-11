@@ -120,7 +120,7 @@ jobs:
           mkdir -p "$staging"
 
           cp {README.md,LICENSE} "$staging/"
-          cp "${{ env.TARGET_DIR }}/release/notes-rs" "$staging/"
+          cp "${{ env.TARGET_DIR }}/release/notes-rs" "$staging/notes"
           tar czf "$staging.tar.gz" "$staging"
           echo "::set-env name=ASSET::$staging.tar.gz"
 
