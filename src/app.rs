@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use dirs::data_dir;
 
-use anyhow::Error;
+use anyhow::{anyhow, Context, Error};
 use clap::{clap_app, value_t, App, ArgMatches};
 use dialoguer::{Confirm, Editor};
 
@@ -15,14 +15,14 @@ use crate::util::*;
 
 pub fn app() -> App<'static, 'static> {
     clap_app!(notes =>
-        (version: "v0.2.1")
+        (version: "v0.2.2")
         (author: "Liam Woodward <liamowoodward@gmail.com>")
         (about: "Application for storing short notes.")
         (@arg path: --path [notes] "path to the notes file.")
         (@subcommand new =>
          (about: "creates a new note.")
          (@group new =>
-          (@arg content: "content of the note")
+          (@arg content: * "content of the note")
           (@arg file: -f --file [file] "file to create a new note from.")
           (@arg editor: -e --editor [editor] #{0, 1} "create a new note in an editor")
          )
@@ -112,7 +112,9 @@ pub fn run_app(app: App) -> anyhow::Result<()> {
 /// Creates it if it does not exist. Does not create the notes file
 /// inside the directory if it does not exist.
 fn get_xdg_data_dir() -> anyhow::Result<PathBuf> {
-    let dir = data_dir().unwrap().join("Notes");
+    let dir = data_dir()
+        .ok_or(anyhow!("Unable to access data directory."))?
+        .join("Notes");
 
     if !dir.exists() {
         fs::create_dir(&dir)?;
@@ -165,7 +167,11 @@ fn run_new_note<'a>(notes: &mut Notes, args: &ArgMatches<'a>) -> anyhow::Result<
         } else if args.is_present("editor") {
             new_note_from_editor(args.value_of("editor"))?
         } else {
-            let mut builder = NoteBuilder::new().with_content(&args.value_of("content").unwrap());
+            let mut builder = NoteBuilder::new().with_content(
+                &args
+                    .value_of("content")
+                    .ok_or(anyhow!("Missing note content."))?,
+            );
 
             if let Some(desc) = args.value_of("desc") {
                 builder = builder.with_desc(desc);
@@ -219,12 +225,14 @@ fn run_get_note<'a>(notes: &Notes, args: &ArgMatches<'a>) -> anyhow::Result<()> 
             );
         }
     } else if desc {
+        // Safe unwrap as we check if `id` is `None` above.
         print_notes!(
             [notes.get_with_id(id.unwrap().parse::<usize>()?)],
             "No note found.",
             (desc, "")
         );
     } else {
+        // Safe unwrap as we check if `id` is `None` above.
         print_notes!(
             [notes.get_with_id(id.unwrap().parse::<usize>()?)],
             "No note found."
@@ -235,7 +243,7 @@ fn run_get_note<'a>(notes: &Notes, args: &ArgMatches<'a>) -> anyhow::Result<()> 
 }
 
 fn run_edit_note<'a>(notes: &mut Notes, args: &ArgMatches<'a>) -> anyhow::Result<()> {
-    let id = value_t!(args, "id", usize).unwrap();
+    let id = value_t!(args, "id", usize).context("Missing note ID.")?;
     let content = args.value_of("content").map(|s| s.to_string());
     let tags = args
         .values_of("tags")
@@ -252,7 +260,7 @@ fn run_edit_note<'a>(notes: &mut Notes, args: &ArgMatches<'a>) -> anyhow::Result
 fn run_delete_note<'a>(notes: &mut Notes, args: &ArgMatches<'a>) -> anyhow::Result<()> {
     // Make sure the note exists and get its content to print
     // the confirmation prompt.
-    let id = value_t!(args, "id", usize).unwrap();
+    let id = value_t!(args, "id", usize).context("Missing note ID to delete.")?;
 
     let content = if let Some(note) = notes.get(id) {
         note.content.clone()
